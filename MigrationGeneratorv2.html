@@ -1880,6 +1880,65 @@
     [data-theme="dark"] .help-tip { border-color: rgba(99,102,241,0.3) !important; }
     [data-theme="dark"] .paste-area { border-color: rgba(99,102,241,0.3) !important; }
     [data-theme="dark"] .paste-textarea { background: var(--surface) !important; color: var(--text) !important; }
+
+    /* ── sticky side nav ── */
+    .side-nav {
+      position: fixed;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 4px 24px rgba(15,23,42,0.10), 0 1px 4px rgba(15,23,42,0.06);
+    }
+    [data-theme="dark"] .side-nav {
+      box-shadow: 0 4px 24px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .side-nav-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 4px;
+    }
+    .side-nav a {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      display: grid; place-items: center;
+      color: var(--text-3);
+      text-decoration: none;
+      position: relative;
+      transition: background .15s, color .15s;
+    }
+    .side-nav a:hover { background: var(--surface-2); color: var(--text); }
+    .side-nav a.active {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+    }
+    .side-nav a svg { width: 17px; height: 17px; flex-shrink: 0; }
+    .side-nav a::after {
+      content: attr(data-label);
+      position: absolute;
+      right: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--text);
+      color: var(--surface);
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s;
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+    .side-nav a:hover::after { opacity: 1; }
   </style>
   <script>
     (function() {
@@ -4520,6 +4579,26 @@ IF NOT EXISTS ( SELECT  *
       if (!theme) theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       applyTheme(theme);
     })();
+
   </script>
+
+  <nav class="side-nav" aria-label="Quick navigation">
+    <a href="index.html" data-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+    <div class="side-nav-divider"></div>
+    <a href="MigrationGeneratorv2.html" data-label="Report Migration Builder" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+    </a>
+    <a href="report-definitions-manager.html" data-label="Report Definitions Manager">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+    </a>
+    <a href="data-validation.html" data-label="Data Validation Tool">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    </a>
+    <a href="migration-tracker.html" data-label="Migration Tracker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    </a>
+  </nav>
 </body>
 </html>
