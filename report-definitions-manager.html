@@ -438,7 +438,12 @@
         <p>Generates SQL for <code>dbo.ReportDefinition</code> — runs as preview
            (<code>@commit = 0</code>) first.</p>
     </div>
-    <button type="button" class="browsebtn readme-btn" onclick="toggleReadme(true)">📖 How to use</button>
+    <div class="readme-btn" style="display:flex; gap:8px; align-items:center;">
+        <a class="browsebtn" href="rdl-viewer.html" target="_blank" rel="noopener"
+           style="display:inline-flex; align-items:center; text-decoration:none;"
+           title="Open the standalone RDL Viewer in a new tab">🔍 RDL Viewer</a>
+        <button type="button" class="browsebtn" onclick="toggleReadme(true)">📖 How to use</button>
+    </div>
 </header>
 
 <div class="layout">
@@ -561,56 +566,78 @@
 <div id="readmeModal" class="modal-overlay" onclick="if(event.target===this)toggleReadme(false)">
   <div class="modal">
     <div class="modal-head">
-        <h2>📖 How to use the Report Wizard</h2>
+        <h2>📖 How to use — <span id="readmeCatBadge">Paycheck</span> reports</h2>
         <button type="button" class="close" onclick="toggleReadme(false)">✕ Close</button>
     </div>
     <p class="hint">Builds SQL for <code>dbo.ReportDefinition</code>. Every script runs as a
        <strong>preview first</strong> (<code>@commit = 0</code> inserts inside a transaction,
        shows the stored rows, then ROLLBACKs). Set <code>@commit = 1</code> to actually persist.</p>
 
+    <!-- category-specific summary (toggled by updateReadmeForCategory) -->
+    <p class="hint cat-paycheck">You're working with a <strong>Paycheck</strong> (or any non-Invoice)
+       category — reports are created <strong>with their subreports</strong>, and the
+       parent↔subreport junction links are inserted.</p>
+    <p class="hint cat-invoice">You're working with the <strong>Invoice</strong> category —
+       reports are <strong>parent-only</strong>: the subreport section is hidden and
+       <strong>no <code>ReportDefinitionSubReportDefinition</code> link</strong> is inserted.</p>
+
     <h4>Step 1 · Category</h4>
     <ul>
-        <li><strong>Paycheck</strong> (or any non-Invoice) → report <em>with</em> subreports.</li>
-        <li><strong>Invoice</strong> → <em>parent report only</em>; the subreport section is hidden
-            and no <code>ReportDefinitionSubReportDefinition</code> link is inserted.</li>
+        <li class="cat-paycheck"><strong>Paycheck</strong> (or any non-Invoice) → report
+            <em>with</em> subreports. Switch via the Category control at the top of the page.</li>
+        <li class="cat-invoice"><strong>Invoice</strong> → <em>parent report only</em>; the
+            subreport section is hidden and no <code>ReportDefinitionSubReportDefinition</code>
+            link is inserted. Switch via the Category control at the top of the page.</li>
     </ul>
 
     <h4>Step 2 · Choose mode</h4>
     <ol>
         <li><strong>Copy existing</strong> — clone a report by its <em>source title</em> + category into a
-            <em>new title</em>. Subreports are discovered and cloned automatically; names are rewritten
-            <code>Avionte → CUO</code>, SPs normalized to <code>CUO_…</code>, and parent↔sub links recreated.</li>
+            <em>new title</em>.
+            <span class="cat-paycheck">Subreports are discovered and cloned automatically; names are
+            rewritten <code>Avionte → CUO</code>, SPs normalized to <code>CUO_…</code>, and parent↔sub
+            links recreated.</span><span class="cat-invoice">Only the single parent report is cloned and
+            renamed (<code>Avionte → CUO</code>, SP normalized to <code>CUO_…</code>) — no subreports
+            and no junction links.</span></li>
         <li><strong>Create report</strong> — supply the parent <em>title</em>, <em>stored procedure</em>,
             <em>SP SQL</em> and <em>ReportDefinitionXML</em>. Paste by hand, or
-            <strong>📁 Browse folder</strong> to auto-fill everything. Add subreports as needed
-            (hidden when category = Invoice).</li>
+            <strong>📁 Browse folder</strong> to auto-fill everything.
+            <span class="cat-paycheck">Add subreports as needed.</span><span class="cat-invoice">The
+            parent is inserted on its own — the subreport section is hidden.</span></li>
     </ol>
 
     <h4>Browse-folder layout</h4>
     <p class="hint">Browsing auto-fills the same fields you'd paste into:</p>
-    <pre class="layoutbox">&lt;ReportFolder&gt;/
+    <pre class="layoutbox cat-paycheck">&lt;ReportFolder&gt;/
   Parent.xml / .rdl          ← parent report (root-level)
   subreports/                ← each child report (any subfolder)
      ChildA.xml
   sp/                        ← stored procedures (filename = SP name)
      CUO_exp_Foo.sql</pre>
+    <pre class="layoutbox cat-invoice">&lt;ReportFolder&gt;/
+  Parent.xml / .rdl          ← parent report (root-level)
+  sp/                        ← stored procedure (filename = SP name)
+     CUO_exp_Foo.sql
+  (no subreports/ folder — Invoice is parent-only)</pre>
     <p class="hint">The parent is the file named/pathed <code>parent</code>, else the shallowest XML.
        SP for each report is guessed by best name match (else the SP named in the XML); always editable.
        A <strong>Files detected</strong> table shows how each file was classified.</p>
 
     <h4>Buttons</h4>
     <ul>
-        <li><strong>Generate Report SQL</strong> — the <code>ReportDefinition</code> INSERT (preview/commit).</li>
-        <li><strong>Generate SP Script</strong> — a standalone deployment
-            script of just the stored procedures (parent + subs).</li>
+        <li><strong>Generate Report SQL</strong> — the <code>ReportDefinition</code> INSERT (preview/commit)<span class="cat-paycheck"> for the parent + subreports</span><span class="cat-invoice"> for the parent only</span>.</li>
+        <li><strong>Generate SP Script</strong> — a standalone deployment script of just the stored
+            procedures (<span class="cat-paycheck">parent + subs</span><span class="cat-invoice">parent only</span>).</li>
         <li><strong>Copy Output</strong> — copies the Output SQL box to the clipboard.</li>
+        <li><strong>🔍 RDL Viewer</strong> — opens the standalone RDL viewer in a new tab to inspect a report's layout, parameters and datasets.</li>
     </ul>
 
     <h4>Workflow</h4>
     <ol>
-        <li>Pick category → mode → fill the fields (or browse).</li>
+        <li>Confirm category (<strong><span class="readme-cat-inline">Paycheck</span></strong>) → pick mode → fill the fields (or browse).</li>
         <li><strong>Generate Report SQL</strong>, copy it, run in SSMS with <code>@commit = 0</code> to preview.</li>
-        <li>Review the returned rows/links, then set <code>@commit = 1</code> and re-run to persist.</li>
+        <li class="cat-paycheck">Review the returned rows + parent↔sub links, then set <code>@commit = 1</code> and re-run to persist.</li>
+        <li class="cat-invoice">Review the returned parent row, then set <code>@commit = 1</code> and re-run to persist.</li>
     </ol>
   </div>
 </div>
@@ -620,9 +647,22 @@
 // Read Me (How to use) modal
 // ---------------------------------------------------------------------------
 function toggleReadme(open) {
+    if (open) updateReadmeForCategory();
     document.getElementById("readmeModal").classList.toggle("open", open);
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") toggleReadme(false); });
+
+// Tailor the How-to-use modal to the selected category: show the Paycheck
+// (with-subreports) or Invoice (parent-only) variants of each section.
+function updateReadmeForCategory() {
+    const invoice = isInvoiceCategory();
+    const cat = invoice ? "Invoice" : "Paycheck";
+    const badge = document.getElementById("readmeCatBadge");
+    if (badge) badge.textContent = cat;
+    document.querySelectorAll("#readmeModal .readme-cat-inline").forEach(el => el.textContent = cat);
+    document.querySelectorAll("#readmeModal .cat-invoice").forEach(el => el.classList.toggle("hidden", !invoice));
+    document.querySelectorAll("#readmeModal .cat-paycheck").forEach(el => el.classList.toggle("hidden", invoice));
+}
 
 // ---------------------------------------------------------------------------
 // Mode handling
@@ -658,6 +698,7 @@ function onCategoryChange() {
         ? "Invoice: parent report only — no subreports are inserted."
         : "";
     if (!document.getElementById("newBox").classList.contains("hidden")) applyCreateLayout();
+    if (document.getElementById("readmeModal").classList.contains("open")) updateReadmeForCategory();
 }
 
 // ---------------------------------------------------------------------------
@@ -1251,6 +1292,9 @@ function toggleTheme() {
   </a>
   <a href="report-definitions-manager.html" data-label="Report Definitions Manager" class="active">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+  </a>
+  <a href="rdl-viewer.html" target="_blank" rel="noopener" data-label="RDL Viewer">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
   </a>
   <a href="data-validation.html" data-label="Data Validation Tool">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
