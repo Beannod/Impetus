@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -30,7 +29,13 @@
             line-height: 1.45;
         }
 
-        .wrap { max-width: 760px; margin: 0 auto; }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+
+        /* Single-column form that uses the full width for a better view.
+           The Output SQL is a small box you only copy from — it stays compact
+           instead of filling the page. */
+        .layout { display: block; }
+        .col-output pre { max-height: 200px; }
 
         /* ---- Header ---- */
         .hdr { display: flex; align-items: center; gap: 11px; margin: 0 0 16px; }
@@ -83,6 +88,7 @@
         }
         input::placeholder, textarea::placeholder { color: #9aa1ae; }
         textarea { resize: vertical; min-height: 92px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
+        textarea.short { min-height: 58px; }   /* compact — expand by dragging the corner */
 
         /* ---- Buttons ---- */
         button {
@@ -168,6 +174,30 @@
             font-size: 12px; line-height: 1.5; min-height: 60px;
         }
         pre:empty::before { content: "Generated SQL will appear here…"; color: #5b6680; }
+
+        /* ---- Read Me (How to use) modal ---- */
+        .readme-btn { margin-left: auto; white-space: nowrap; }
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 50; display: none;
+            background: rgba(16,24,40,.45);
+            align-items: flex-start; justify-content: center;
+            padding: 40px 16px; overflow: auto;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: var(--radius); box-shadow: var(--shadow);
+            max-width: 740px; width: 100%; padding: 20px 26px 26px;
+        }
+        .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 6px; }
+        .modal-head h2 { font-size: 16px; margin: 0; }
+        .modal .close { width: auto; padding: 4px 11px; }
+        .modal h4 { margin: 16px 0 6px; color: var(--accent-d); }
+        .modal ol, .modal ul { margin: 6px 0; padding-left: 20px; }
+        .modal li { margin: 4px 0; }
+        .modal code { background: var(--accent-sf); color: var(--accent-d);
+            padding: 1px 5px; border-radius: 5px; font-size: 11.5px; }
+        .modal .layoutbox { min-height: 0; font-size: 11.5px; }
     </style>
 </head>
 
@@ -181,11 +211,26 @@
         <p>Generates SQL for <code>dbo.ReportDefinition</code> — runs as preview
            (<code>@commit = 0</code>) first.</p>
     </div>
+    <button type="button" class="browsebtn readme-btn" onclick="toggleReadme(true)">📖 How to use</button>
 </header>
 
-<!-- ================= STEP 1: MODE ================= -->
+<div class="layout">
+<div class="col-form">
+
+<!-- ================= STEP 1: CATEGORY ================= -->
 <div class="box">
-    <span class="step">Step 1 · Choose mode</span>
+    <span class="step">Step 1 · Category</span>
+    <label>Report Category</label>
+    <select id="category" onchange="onCategoryChange()">
+        <option value="Paycheck">Paycheck</option>
+        <option value="Invoice">Invoice</option>
+    </select>
+    <p class="hint" id="categoryHint"></p>
+</div>
+
+<!-- ================= STEP 2: MODE ================= -->
+<div class="box">
+    <span class="step">Step 2 · Choose mode</span>
     <div class="seg">
         <label class="seg-item">
             <input type="radio" name="mode" value="copy" onclick="setMode('copy')">
@@ -210,13 +255,10 @@
             <input id="oldTitle" placeholder="e.g. avionte default paycheck top">
         </div>
         <div>
-            <label>Category</label>
-            <input id="copyCategory" placeholder="e.g. Paycheck" value="Paycheck">
+            <label>New Report Title</label>
+            <input id="newTitle" placeholder="e.g. CUO_Default_PayCheck_Bottom">
         </div>
     </div>
-
-    <label>New Report Title</label>
-    <input id="newTitle" placeholder="e.g. CUO_Default_PayCheck_Bottom">
 
     <p class="hint">Subreports are discovered and cloned automatically from
     <code>dbo.ReportDefinitionSubReportDefinition</code> — no need to list them.
@@ -228,41 +270,41 @@
 
 <!-- ================= CREATE MODE (paste XML + browse-to-fill) ================= -->
 <div id="newBox" class="box hidden">
-    <h3>Create Report</h3>
+    <h3 id="newBoxTitle">Create Report</h3>
 
-    <div class="row2">
-        <div>
-            <label>Category</label>
-            <input id="newCategory" placeholder="e.g. Paycheck" value="Paycheck">
-        </div>
-        <div>
-            <label>Parent Report Title</label>
-            <input id="newParentTitle" placeholder="e.g. CUO_MyNewReport">
-        </div>
-    </div>
+    <label>Parent Report Title</label>
+    <input id="newParentTitle" placeholder="e.g. CUO_MyNewReport">
 
     <label>Parent Stored Procedure</label>
     <input id="newParentSP" list="spOptions" oninput="syncSPBody(this)" placeholder="e.g. CUO_exp_MyNewReport — type, paste, or pick a folder SP">
     <datalist id="spOptions"></datalist>
 
-    <label>Parent Stored Procedure SQL</label>
-    <textarea id="newParentSPBody" rows="5" placeholder="CREATE / ALTER PROCEDURE ... — auto-filled when you browse a folder or pick a folder SP, or paste here"></textarea>
-
-    <div class="label-row">
-        <label style="margin:0;">Parent ReportDefinitionXML</label>
-        <button type="button" class="browsebtn"
-                onclick="document.getElementById('folderInput').click()">📁 Browse folder to auto-fill</button>
+    <div class="row2">
+        <div>
+            <div class="label-row"><label style="margin:0;">Parent Stored Procedure SQL</label></div>
+            <textarea id="newParentSPBody" class="short" rows="3" placeholder="CREATE / ALTER PROCEDURE ... — auto-filled, or paste here"></textarea>
+        </div>
+        <div>
+            <div class="label-row">
+                <label style="margin:0;">Parent ReportDefinitionXML</label>
+                <button type="button" class="browsebtn"
+                        onclick="document.getElementById('folderInput').click()">📁 Browse folder</button>
+            </div>
+            <textarea id="newParentXML" class="short" rows="3" placeholder="Paste full parent ReportDefinition XML here..."></textarea>
+        </div>
     </div>
-    <p class="hint">Paste XML by hand, <em>or</em> browse a report folder to auto-fill the
-    title, XML and stored procedure for the parent and every subreport.
-    Layout: parent <code>.xml</code>/<code>.rdl</code> at the root, child reports under a
+    <p class="hint">Paste XML/SP by hand, <em>or</em> browse a report folder to auto-fill the
+    title, XML and stored procedure for the parent and every subreport. Both fields are
+    resizable — drag the corner to expand for copy/paste. Layout: parent
+    <code>.xml</code>/<code>.rdl</code> at the root, child reports under a
     <code>subreports/</code> folder, SP names as files under an <code>sp/</code> folder.</p>
     <input type="file" id="folderInput" class="hidden" webkitdirectory directory multiple onchange="loadFolder(this)">
-    <textarea id="newParentXML" rows="6" placeholder="Paste full parent ReportDefinition XML here..."></textarea>
 
-    <h4>Subreports (optional)</h4>
-    <div id="newSubContainer"></div>
-    <button type="button" class="btn-add" onclick="addNewSub()">+ Add Subreport</button>
+    <div id="subreportsSection">
+        <h4>Subreports (optional)</h4>
+        <div id="newSubContainer"></div>
+        <button type="button" class="btn-add" onclick="addNewSub()">+ Add Subreport</button>
+    </div>
 
     <h4 id="filesDetectedHdr" class="hidden">Files detected</h4>
     <div id="browseDebug"></div>
@@ -274,12 +316,87 @@
     <button type="button" onclick="copyOutput()">Copy Output</button>
 </div>
 
-<div class="out-head"><h3>Output SQL</h3></div>
+</div><!-- /col-form -->
+
+<div class="col-output">
+<div class="out-head">
+    <h3>Output SQL <span class="hint" style="font-weight:400;">— copy from here</span></h3>
+    <button type="button" onclick="copyOutput()">Copy Output</button>
+</div>
 <pre id="output"></pre>
+</div><!-- /col-output -->
+
+</div><!-- /layout -->
 
 </div><!-- /wrap -->
 
+<!-- ================= READ ME / HOW TO USE ================= -->
+<div id="readmeModal" class="modal-overlay" onclick="if(event.target===this)toggleReadme(false)">
+  <div class="modal">
+    <div class="modal-head">
+        <h2>📖 How to use the Report Wizard</h2>
+        <button type="button" class="close" onclick="toggleReadme(false)">✕ Close</button>
+    </div>
+    <p class="hint">Builds SQL for <code>dbo.ReportDefinition</code>. Every script runs as a
+       <strong>preview first</strong> (<code>@commit = 0</code> inserts inside a transaction,
+       shows the stored rows, then ROLLBACKs). Set <code>@commit = 1</code> to actually persist.</p>
+
+    <h4>Step 1 · Category</h4>
+    <ul>
+        <li><strong>Paycheck</strong> (or any non-Invoice) → report <em>with</em> subreports.</li>
+        <li><strong>Invoice</strong> → <em>parent report only</em>; the subreport section is hidden
+            and no <code>ReportDefinitionSubReportDefinition</code> link is inserted.</li>
+    </ul>
+
+    <h4>Step 2 · Choose mode</h4>
+    <ol>
+        <li><strong>Copy existing</strong> — clone a report by its <em>source title</em> + category into a
+            <em>new title</em>. Subreports are discovered and cloned automatically; names are rewritten
+            <code>Avionte → CUO</code>, SPs normalized to <code>CUO_…</code>, and parent↔sub links recreated.</li>
+        <li><strong>Create report</strong> — supply the parent <em>title</em>, <em>stored procedure</em>,
+            <em>SP SQL</em> and <em>ReportDefinitionXML</em>. Paste by hand, or
+            <strong>📁 Browse folder</strong> to auto-fill everything. Add subreports as needed
+            (hidden when category = Invoice).</li>
+    </ol>
+
+    <h4>Browse-folder layout</h4>
+    <p class="hint">Browsing auto-fills the same fields you'd paste into:</p>
+    <pre class="layoutbox">&lt;ReportFolder&gt;/
+  Parent.xml / .rdl          ← parent report (root-level)
+  subreports/                ← each child report (any subfolder)
+     ChildA.xml
+  sp/                        ← stored procedures (filename = SP name)
+     CUO_exp_Foo.sql</pre>
+    <p class="hint">The parent is the file named/pathed <code>parent</code>, else the shallowest XML.
+       SP for each report is guessed by best name match (else the SP named in the XML); always editable.
+       A <strong>Files detected</strong> table shows how each file was classified.</p>
+
+    <h4>Buttons</h4>
+    <ul>
+        <li><strong>Generate Report SQL</strong> — the <code>ReportDefinition</code> INSERT (preview/commit).</li>
+        <li><strong>Generate SP Script</strong> — a standalone deployment
+            script of just the stored procedures (parent + subs).</li>
+        <li><strong>Copy Output</strong> — copies the Output SQL box to the clipboard.</li>
+    </ul>
+
+    <h4>Workflow</h4>
+    <ol>
+        <li>Pick category → mode → fill the fields (or browse).</li>
+        <li><strong>Generate Report SQL</strong>, copy it, run in SSMS with <code>@commit = 0</code> to preview.</li>
+        <li>Review the returned rows/links, then set <code>@commit = 1</code> and re-run to persist.</li>
+    </ol>
+  </div>
+</div>
+
 <script>
+// ---------------------------------------------------------------------------
+// Read Me (How to use) modal
+// ---------------------------------------------------------------------------
+function toggleReadme(open) {
+    document.getElementById("readmeModal").classList.toggle("open", open);
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") toggleReadme(false); });
+
 // ---------------------------------------------------------------------------
 // Mode handling
 // ---------------------------------------------------------------------------
@@ -287,7 +404,33 @@ function setMode(mode) {
     document.getElementById("copyBox").classList.add("hidden");
     document.getElementById("newBox").classList.add("hidden");
     if (mode === "copy")   document.getElementById("copyBox").classList.remove("hidden");
-    if (mode === "create") document.getElementById("newBox").classList.remove("hidden");
+    if (mode === "create") {
+        document.getElementById("newBox").classList.remove("hidden");
+        applyCreateLayout();
+    }
+}
+
+// Invoice category = parent-only: no subreports. The category control drives
+// the page, so the Create form's subreport section is shown/hidden by category.
+function isInvoiceCategory() {
+    return (val("category") || "").toLowerCase() === "invoice";
+}
+
+function applyCreateLayout() {
+    const invoice = isInvoiceCategory();
+    document.getElementById("subreportsSection").classList.toggle("hidden", invoice);
+    document.getElementById("newBoxTitle").innerText =
+        invoice ? "Create Report (parent only — no subreports)" : "Create Report";
+    if (invoice) document.getElementById("newSubContainer").innerHTML = "";  // drop any subs
+}
+
+// Re-run whenever the category changes; keeps the visible Create form in sync.
+function onCategoryChange() {
+    const hint = document.getElementById("categoryHint");
+    hint.textContent = isInvoiceCategory()
+        ? "Invoice: parent report only — no subreports are inserted."
+        : "";
+    if (!document.getElementById("newBox").classList.contains("hidden")) applyCreateLayout();
 }
 
 // ---------------------------------------------------------------------------
@@ -302,8 +445,10 @@ function addNewSub(data) {
             <input class="subTitle" placeholder="Subreport title (CUO_...)">
             <input class="subSP" list="spOptions" oninput="syncSPBody(this)" placeholder="Stored procedure (CUO_exp_...)">
         </div>
-        <textarea class="subXML" rows="4" placeholder="Subreport ReportDefinitionXML"></textarea>
-        <textarea class="subSPBody" rows="4" placeholder="Stored procedure SQL (auto-filled from the sp/ folder, or paste)"></textarea>
+        <div class="row2">
+            <textarea class="subSPBody short" rows="3" placeholder="Stored procedure SQL (auto-filled from the sp/ folder, or paste)"></textarea>
+            <textarea class="subXML short" rows="3" placeholder="Subreport ReportDefinitionXML"></textarea>
+        </div>
         <button type="button" class="remove" onclick="this.parentElement.remove()">Remove</button>
     `;
     div.querySelector(".subTitle").value  = data.title  || "";
@@ -344,11 +489,9 @@ function cleanXml(v) {
 function generateCopySQL() {
     const oldTitle = sqlStr(val("oldTitle"));
     const newTitle = sqlStr(val("newTitle"));
-    const category = sqlStr(val("copyCategory"));
+    const category = sqlStr(val("category"));
 
-    return `USE [102028];
-GO
-SET NOCOUNT ON;
+    return `SET NOCOUNT ON;
 
 IF OBJECT_ID('tempdb..#tempreportdefinition') IS NOT NULL
     DROP TABLE #tempreportdefinition;
@@ -495,7 +638,7 @@ END CATCH
 }
 
 function generateNewSQL() {
-    const category    = sqlStr(val("newCategory"));
+    const category    = sqlStr(val("category"));
     const parentTitle = sqlStr(val("newParentTitle"));
     const parentSP    = sqlStr(val("newParentSP"));
     const parentXML   = sqlStr(cleanXml(val("newParentXML")));
@@ -527,9 +670,7 @@ DECLARE @sub${i + 1}XML   NVARCHAR(MAX) = N'${s.xml}';
 `;
     });
 
-    return `USE [102028];
-GO
-SET NOCOUNT ON;
+    return `SET NOCOUNT ON;
 
 ------------------------------------------------------------
 -- PARAMETERS
@@ -589,6 +730,75 @@ ${inserts}    SET @parentGuid = ( SELECT ReportDefinitionGuid FROM @inserted WHE
         BEGIN
             COMMIT TRANSACTION;
             PRINT 'New report created. Parent GUID = ' + CONVERT(VARCHAR(50), @parentGuid);
+        END
+    ELSE
+        BEGIN
+            ROLLBACK TRANSACTION;
+            PRINT 'PREVIEW only (rolled back). Set @commit = 1 to persist.';
+        END
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+    DECLARE @ErrMsg VARCHAR(MAX) = ERROR_MESSAGE();
+    RAISERROR(@ErrMsg, 16, 1);
+END CATCH
+`;
+}
+
+// Invoice reports are parent-only: insert the single ReportDefinition row,
+// NO subreport rows and NO ReportDefinitionSubReportDefinition (junction) insert.
+function generateInvoiceSQL() {
+    const category    = sqlStr(val("category"));
+    const parentTitle = sqlStr(val("newParentTitle"));
+    const parentSP    = sqlStr(val("newParentSP"));
+    const parentXML   = sqlStr(cleanXml(val("newParentXML")));
+
+    return `SET NOCOUNT ON;
+
+------------------------------------------------------------
+-- PARAMETERS
+------------------------------------------------------------
+DECLARE @commit   BIT          = 0;   -- 0 = preview (insert then ROLLBACK) | 1 = commit
+DECLARE @category VARCHAR(MAX) = '${category}';
+DECLARE @DateModified DATETIME = GETDATE();
+DECLARE @RootStaffingSupplierGUID UNIQUEIDENTIFIER = dbo.udf_GetUserRootStaffingSupplierGUID();
+
+-- Parent (Invoice reports have no subreports — no junction insert)
+DECLARE @parentTitle VARCHAR(MAX)  = '${parentTitle}';
+DECLARE @parentSP    VARCHAR(MAX)  = '${parentSP}';
+DECLARE @parentXML   NVARCHAR(MAX) = N'${parentXML}';
+
+-- ReportDefinitionGuid + ReportImage are left to the table defaults;
+-- the DB-generated GUID is captured here just for the preview / PRINT.
+DECLARE @inserted   TABLE ( ReportDefinitionGuid UNIQUEIDENTIFIER , IsSubReport BIT );
+DECLARE @parentGuid UNIQUEIDENTIFIER;
+
+------------------------------------------------------------
+-- Insert into the REAL table inside a transaction.
+--   @commit = 0  -> show the actually-stored row, then ROLLBACK (nothing persists)
+--   @commit = 1  -> COMMIT
+------------------------------------------------------------
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    INSERT INTO dbo.ReportDefinition
+        ( ReportDefinitionXML , Description , Category , DateModified , Title ,
+          RootStaffingSupplierGUID , IsSubReport , PrintLayout , ReportStoredProcedure )
+    OUTPUT inserted.ReportDefinitionGuid , inserted.IsSubReport INTO @inserted
+    VALUES ( @parentXML , @parentTitle , @category , @DateModified , @parentTitle ,
+          @RootStaffingSupplierGUID , 0 , 'Portrait' , @parentSP );
+
+    SET @parentGuid = ( SELECT ReportDefinitionGuid FROM @inserted WHERE IsSubReport = 0 );
+
+    -- Reflect exactly what landed in the real table
+    SELECT RD.*
+    FROM   dbo.ReportDefinition RD
+           INNER JOIN @inserted I ON I.ReportDefinitionGuid = RD.ReportDefinitionGuid;
+
+    IF @commit = 1
+        BEGIN
+            COMMIT TRANSACTION;
+            PRINT 'New Invoice report created. Parent GUID = ' + CONVERT(VARCHAR(50), @parentGuid);
         END
     ELSE
         BEGIN
@@ -735,7 +945,7 @@ function generateSQL() {
 
     let sql = "";
     if (mode.value === "copy")   sql = generateCopySQL();
-    if (mode.value === "create") sql = generateNewSQL();
+    if (mode.value === "create") sql = isInvoiceCategory() ? generateInvoiceSQL() : generateNewSQL();
     if (sql) document.getElementById("output").innerText = sql;
 }
 
@@ -760,7 +970,7 @@ function generateSPScript() {
         return;
     }
 
-    let out = "USE [102028];\nGO\n";
+    let out = "";
     procs.forEach(p => {
         out += `\n------------------------------------------------------------\n` +
                `-- ${p.name}\n` +
@@ -768,7 +978,7 @@ function generateSPScript() {
                `${p.body}\n`;
         if (!/\bGO\s*$/i.test(p.body)) out += "GO\n";
     });
-    document.getElementById("output").innerText = out;
+    document.getElementById("output").innerText = out.replace(/^\n+/, "");
 }
 
 function copyOutput() {
