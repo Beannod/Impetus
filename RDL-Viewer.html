@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SSRS 2005 RDL Viewer</title>
+<style>
+  :root {
+    --bg: #1e1e1e;
+    --panel: #252526;
+    --panel2: #2d2d30;
+    --border: #3c3c3c;
+    --text: #d4d4d4;
+    --muted: #858585;
+    --accent: #007acc;
+    --accent2: #0098ff;
+    --good: #4ec9b0;
+    --warn: #dcdcaa;
+    --bad: #f48771;
+    --tag: #569cd6;
+    --attr: #9cdcfe;
+    --string: #ce9178;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--accent2);
+  }
+  header .meta { color: var(--muted); font-size: 12px; }
+  .file-input {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .btn:hover { background: var(--accent2); }
+  .btn.secondary { background: var(--panel2); border: 1px solid var(--border); color: var(--text); }
+  .btn.secondary:hover { background: var(--border); }
+  .btn.small { padding: 4px 8px; font-size: 11px; }
+  #fileName { color: var(--good); font-family: Consolas, monospace; font-size: 12px; }
+
+  .tabs {
+    display: flex;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  .tab .pill {
+    margin-left: 6px;
+    background: var(--border);
+    color: var(--text);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+  .tab .pill.warn { background: #5a3e00; color: var(--warn); }
+  .tab .pill.good { background: #1b3a2b; color: var(--good); }
+
+  main {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--muted);
+    margin: 40px auto;
+    max-width: 600px;
+    transition: all 0.2s;
+  }
+  .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0,122,204,0.08);
+    color: var(--text);
+  }
+
+  /* Layout preview */
+  .report-canvas {
+    background: #fff;
+    color: #000;
+    margin: 0 auto;
+    position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    font-family: Verdana, sans-serif;
+    overflow: hidden;
+  }
+  .rdl-textbox {
+    position: absolute;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    box-sizing: border-box;
+  }
+  .rdl-rectangle {
+    position: absolute;
+    box-sizing: border-box;
+  }
+  .rdl-image {
+    position: absolute;
+    background: #eee;
+    border: 1px dashed #999;
+    color: #666;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .rdl-line {
+    position: absolute;
+    background: #000;
+  }
+  .rdl-subreport {
+    position: absolute;
+    background: #fff8dc;
+    border: 1px dashed #b08c00;
+    color: #6c5500;
+    font-size: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  .rdl-subreport.loaded {
+    background: #fff;
+    border: 1px solid #4caf50;
+    cursor: default;
+  }
+  .rdl-subreport .sub-header {
+    background: rgba(76,175,80,0.18);
+    color: #2e7031;
+    padding: 1px 4px;
+    font-size: 9px;
+    font-family: Consolas, monospace;
+    border-bottom: 1px solid #c8e6c9;
+  }
+  .rdl-subreport.missing .sub-header {
+    background: rgba(176,140,0,0.18);
+    color: #6c5500;
+    border-bottom: 1px solid #f0d97d;
+  }
+  .rdl-subreport .sub-body {
+    position: relative;
+    overflow: hidden;
+  }
+  .rdl-subreport.missing .sub-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4px;
+    height: 100%;
+  }
+  .rdl-table, .rdl-matrix, .rdl-list {
+    position: absolute;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .rdl-table table, .rdl-matrix table {
+    border-collapse: collapse;
+    width: 100%;
+    height: 100%;
+    table-layout: fixed;
+  }
+  .rdl-cell {
+    border: 1px solid #ddd;
+    vertical-align: top;
+    overflow: hidden;
+    padding: 0;
+  }
+  .rdl-cell .rdl-textbox-inline {
+    position: static;
+    width: 100%;
+    height: 100%;
+    padding: 2px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .row-band {
+    background: #f5f5f5;
+    font-size: 10px;
+    color: #666;
+    padding: 2px 4px;
+    border-top: 1px dashed #ccc;
+  }
+
+  /* Cards / dataset / parameter UI */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--panel2);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    flex-wrap: wrap;
+  }
+  .card-header .name { color: var(--accent2); font-family: Consolas, monospace; }
+  .card-header .badge {
+    background: var(--border);
+    color: var(--text);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: normal;
+  }
+  .card-header .badge.good { background: #1b3a2b; color: var(--good); }
+  .card-header .badge.warn { background: #5a3e00; color: var(--warn); }
+  .card-header .badge.bad  { background: #5a1f1a; color: var(--bad); }
+  .card-body { padding: 12px; }
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 6px 12px; font-size: 12px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-family: Consolas, monospace; word-break: break-word; }
+  pre.sql {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    padding: 10px;
+    margin: 8px 0 0 0;
+    overflow-x: auto;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    color: var(--string);
+    border-radius: 3px;
+    white-space: pre-wrap;
+  }
+  table.fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+  }
+  table.fields th, table.fields td {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    text-align: left;
+  }
+  table.fields th {
+    background: var(--panel2);
+    color: var(--muted);
+    font-weight: normal;
+  }
+  table.fields td.field-name { color: var(--attr); }
+  table.fields td.field-data { color: var(--good); }
+  table.fields td.field-expr { color: var(--warn); }
+
+  /* Editable parameter form */
+  .param-form input[type=text],
+  .param-form input[type=number],
+  .param-form select {
+    background: #1a1a1a;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 8px;
+    border-radius: 3px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    min-width: 320px;
+  }
+  .param-form input:focus, .param-form select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 11px;
+    font-style: italic;
+  }
+
+  /* Raw tree */
+  .tree { font-family: Consolas, monospace; font-size: 12px; }
+  .tree details { margin-left: 14px; }
+  .tree summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .tree summary::-webkit-details-marker { display: none; }
+  .tree summary::before {
+    content: '▶ ';
+    color: var(--muted);
+    display: inline-block;
+    width: 12px;
+    transition: transform 0.1s;
+  }
+  .tree details[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .tree .t-tag { color: var(--tag); }
+  .tree .t-attr-n { color: var(--attr); }
+  .tree .t-attr-v { color: var(--string); }
+  .tree .t-text { color: var(--good); }
+  .tree .leaf {
+    margin-left: 26px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .summary-tile {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+  }
+  .summary-tile .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-tile .value { color: var(--accent2); font-size: 20px; font-weight: 500; margin-top: 4px; }
+  .summary-tile .sub { color: var(--text); font-size: 12px; margin-top: 4px; font-family: Consolas, monospace; }
+
+  .empty {
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+    padding: 30px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>SSRS 2005 RDL Viewer</h1>
+  <div class="file-input">
+    <input type="file" id="filePicker" accept=".rdl,.xml" style="display:none" />
+    <input type="file" id="folderPicker" webkitdirectory directory multiple style="display:none" />
+    <button class="btn" onclick="document.getElementById('filePicker').click()">Choose RDL…</button>
+    <button class="btn secondary" onclick="document.getElementById('folderPicker').click()">Choose folder…</button>
+    <button class="btn secondary" id="reloadBtn" style="display:none">Reload</button>
+    <span id="fileName"></span>
+  </div>
+  <div class="meta" id="reportMeta"></div>
+</header>
+
+<div class="tabs" id="tabs" style="display:none">
+  <div class="tab active" data-tab="summary">Summary</div>
+  <div class="tab" data-tab="layout">Layout Preview</div>
+  <div class="tab" data-tab="parameters">Parameters <span class="pill" id="pill-params"></span></div>
+  <div class="tab" data-tab="subreports">Subreports <span class="pill" id="pill-subs"></span></div>
+  <div class="tab" data-tab="datasets">Datasets &amp; Queries</div>
+  <div class="tab" data-tab="raw">Raw XML Tree</div>
+</div>
+
+<main>
+  <div id="dropZone" class="drop-zone">
+    <div style="font-size: 16px; margin-bottom: 8px;">Drop an .rdl file (or a folder of them) here</div>
+    <div>or click <b>Choose RDL…</b> / <b>Choose folder…</b> above</div>
+    <div style="margin-top: 18px; font-size: 11px;">
+      Supports SSRS 2005 RDL schema<br>
+      (<code>http://schemas.microsoft.com/sqlserver/reporting/2005/01/reportdefinition</code>)<br>
+      <br>
+      <b>Folder mode</b> loads every <code>.rdl</code> under the selected folder.
+      One becomes the main report; the others are auto-matched to <code>&lt;Subreport&gt;</code>
+      placeholders by their <code>ReportName</code>.
+      <br><br>
+      Everything runs locally in your browser — no upload.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-summary"></div>
+  <div class="tab-panel" id="panel-layout"></div>
+  <div class="tab-panel" id="panel-parameters"></div>
+  <div class="tab-panel" id="panel-subreports"></div>
+  <div class="tab-panel" id="panel-datasets"></div>
+  <div class="tab-panel" id="panel-raw"></div>
+</main>
+
+<script>
+'use strict';
+
+const RDL_NS = 'http://schemas.microsoft.com/sqlserver/reporting/2005/01/reportdefinition';
+
+// Mutable per-session state
+const state = {
+  mainFile: null,      // File object for the main RDL
+  mainDoc: null,       // parsed XMLDocument
+  mainReport: null,    // <Report> element
+  paramValues: {},     // { paramName: stringValue } — values the user typed
+  subreports: {},      // { reportName: { doc, report, file, paramMap } }  paramMap = inherited params name->value
+  library: {},         // { reportNameLower: { file, name } } — files loaded from a folder, indexed by basename
+  customParams: {},    // { paramName: true } — names the user added manually (values live in paramValues)
+};
+
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ----- Units ----- */
+function toPx(unit) {
+  if (!unit) return 0;
+  const m = String(unit).trim().match(/^(-?\d*\.?\d+)\s*(in|pt|mm|cm|pc|px)?$/i);
+  if (!m) return 0;
+  const v = parseFloat(m[1]);
+  const u = (m[2] || 'in').toLowerCase();
+  switch (u) {
+    case 'in': return v * 96;
+    case 'pt': return v * 96 / 72;
+    case 'mm': return v * 96 / 25.4;
+    case 'cm': return v * 96 / 2.54;
+    case 'pc': return v * 96 / 6;
+    case 'px': return v;
+  }
+  return 0;
+}
+
+/* ----- DOM helpers ----- */
+function childByLocalName(el, name) {
+  if (!el) return null;
+  for (const c of el.children) if (c.localName === name) return c;
+  return null;
+}
+function childrenByLocalName(el, name) {
+  if (!el) return [];
+  return Array.from(el.children).filter(c => c.localName === name);
+}
+function textOf(el, name) {
+  const c = childByLocalName(el, name);
+  return c ? c.textContent : '';
+}
+function walkAll(el, cb) {
+  cb(el);
+  for (const c of el.children) walkAll(c, cb);
+}
+
+/* ----- Expression simulator (very simple) -----
+ * Goal: take an RDL Value expression like:
+ *   ="Customer: " & Fields!Name.Value & " #" & Parameters!FKGUID.Value
+ * and render a *preview-friendly* string substituting Parameters! with user-entered values,
+ * Fields! with {FieldName}, and stripping VB syntax we can't evaluate.
+ */
+function simulateExpr(expr, paramValues, fieldValues) {
+  if (!expr) return '';
+  if (!expr.startsWith('=')) return expr; // literal
+  let s = expr.substring(1);
+
+  // Replace Parameters!X.Value (and .Label) with user-entered value (or [X] if none)
+  s = s.replace(/Parameters!(\w+)\.(Value|Label)/g, (_m, name) => {
+    if (paramValues && paramValues[name] != null && paramValues[name] !== '') {
+      return JSON.stringify(paramValues[name]);
+    }
+    return `"[${name}]"`;
+  });
+
+  // Fields!X.Value -> live value (if provided) or "{X}"
+  s = s.replace(/Fields!(\w+)\.Value/g, (_m, name) => {
+    if (fieldValues && Object.prototype.hasOwnProperty.call(fieldValues, name)) {
+      const v = fieldValues[name];
+      return JSON.stringify(v == null ? '' : String(v));
+    }
+    return `"{${name}}"`;
+  });
+
+  // Globals!X / ReportItems!X.Value
+  s = s.replace(/Globals!(\w+)/g, (_m, n) => `"<${n}>"`);
+  s = s.replace(/ReportItems!(\w+)\.Value/g, (_m, n) => `"<${n}>"`);
+
+  // Very common VB concat tokens — we'll try a best-effort substitution
+  // Replace ` & ` with ` + ` and vbCrLf with newline; keep IIf, Format, Code.Foo unevaluated as marker
+  s = s.replace(/\s&\s/g, ' + ');
+  s = s.replace(/\bvbCrLf\b/g, '"\\n"');
+  s = s.replace(/\bvbCr\b/g, '"\\r"');
+  s = s.replace(/\bvbLf\b/g, '"\\n"');
+  s = s.replace(/&amp;/g, '&');
+
+  // Try to eval as a JS string concatenation. If it fails, return the raw simplified expr.
+  // Safety: only evaluate if it looks like string concat / simple literals.
+  if (/^[\s"'+()\d\w.\-\\,:/{}\[\]?!@#$%^*=<>|`~]+$/.test(s)) {
+    try {
+      // eslint-disable-next-line no-new-func
+      const out = Function(`"use strict";return (${s});`)();
+      if (typeof out === 'string' || typeof out === 'number') {
+        return String(out).replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+      }
+    } catch (_) { /* fall through */ }
+  }
+  // Fallback: just show the (simplified) expression
+  return '⟨' + expr + '⟩';
+}
+
+/* ----- Style parsing ----- */
+function parseStyle(styleEl) {
+  const css = {};
+  if (!styleEl) return css;
+  for (const c of styleEl.children) {
+    const n = c.localName;
+    const v = c.textContent.trim();
+    switch (n) {
+      case 'FontFamily': css['font-family'] = v; break;
+      case 'FontSize': css['font-size'] = v; break;
+      case 'FontWeight':
+        if (/^\d+$/.test(v)) css['font-weight'] = v;
+        else css['font-weight'] = v.toLowerCase();
+        break;
+      case 'FontStyle': css['font-style'] = v.toLowerCase(); break;
+      case 'TextDecoration': css['text-decoration'] = v.toLowerCase(); break;
+      case 'Color': css['color'] = v; break;
+      case 'BackgroundColor': css['background-color'] = v; break;
+      case 'TextAlign': css['text-align'] = v.toLowerCase(); break;
+      case 'VerticalAlign':
+        css['vertical-align'] = v.toLowerCase();
+        if (v.toLowerCase() === 'middle') { css['display'] = 'flex'; css['align-items'] = 'center'; }
+        if (v.toLowerCase() === 'bottom') { css['display'] = 'flex'; css['align-items'] = 'flex-end'; }
+        break;
+      case 'PaddingLeft': css['padding-left'] = v; break;
+      case 'PaddingRight': css['padding-right'] = v; break;
+      case 'PaddingTop': css['padding-top'] = v; break;
+      case 'PaddingBottom': css['padding-bottom'] = v; break;
+      case 'Border':
+      case 'BorderColor':
+      case 'BorderStyle':
+      case 'BorderWidth':
+        for (const sub of c.children) {
+          const sn = sub.localName;
+          const sv = sub.textContent.trim();
+          if (n === 'Border' || n === 'BorderColor') {
+            if (sn === 'Default') css['border-color'] = sv;
+            if (sn === 'Left') css['border-left-color'] = sv;
+            if (sn === 'Right') css['border-right-color'] = sv;
+            if (sn === 'Top') css['border-top-color'] = sv;
+            if (sn === 'Bottom') css['border-bottom-color'] = sv;
+          } else if (n === 'BorderStyle') {
+            const map = (x) => ({None:'none',Solid:'solid',Dashed:'dashed',Dotted:'dotted',Double:'double'}[x]||'solid');
+            if (sn === 'Default') css['border-style'] = map(sv);
+            if (sn === 'Left') css['border-left-style'] = map(sv);
+            if (sn === 'Right') css['border-right-style'] = map(sv);
+            if (sn === 'Top') css['border-top-style'] = map(sv);
+            if (sn === 'Bottom') css['border-bottom-style'] = map(sv);
+          } else if (n === 'BorderWidth') {
+            if (sn === 'Default') css['border-width'] = sv;
+            if (sn === 'Left') css['border-left-width'] = sv;
+            if (sn === 'Right') css['border-right-width'] = sv;
+            if (sn === 'Top') css['border-top-width'] = sv;
+            if (sn === 'Bottom') css['border-bottom-width'] = sv;
+          }
+        }
+        break;
+    }
+  }
+  return css;
+}
+function styleToString(obj) {
+  return Object.entries(obj).map(([k,v]) => `${k}:${v}`).join(';');
+}
+
+/* ----- Item rendering ----- */
+function getPos(el) {
+  return {
+    top: toPx(textOf(el, 'Top')),
+    left: toPx(textOf(el, 'Left')),
+    width: toPx(textOf(el, 'Width')),
+    height: toPx(textOf(el, 'Height')),
+  };
+}
+function applyPos(pos, useAbs = true) {
+  const o = {};
+  if (useAbs) {
+    o['top'] = pos.top + 'px';
+    o['left'] = pos.left + 'px';
+  }
+  if (pos.width) o['width'] = pos.width + 'px';
+  if (pos.height) o['height'] = pos.height + 'px';
+  return o;
+}
+
+function renderTextbox(el, ctx, absolute = true) {
+  const pos = getPos(el);
+  const styleObj = parseStyle(childByLocalName(el, 'Style'));
+  Object.assign(styleObj, applyPos(pos, absolute));
+  const value = textOf(el, 'Value') || '';
+  const name = el.getAttribute('Name') || '';
+  const div = document.createElement('div');
+  div.className = absolute ? 'rdl-textbox' : 'rdl-textbox-inline';
+  div.title = `${name}\n${value}`;
+  div.setAttribute('style', styleToString(styleObj));
+  div.textContent = simulateExpr(value, ctx.paramValues, ctx.fieldValues);
+  return div;
+}
+
+function renderRectangle(el, ctx) {
+  const pos = getPos(el);
+  const styleObj = parseStyle(childByLocalName(el, 'Style'));
+  Object.assign(styleObj, applyPos(pos));
+  const div = document.createElement('div');
+  div.className = 'rdl-rectangle';
+  div.setAttribute('style', styleToString(styleObj));
+  div.title = el.getAttribute('Name') || 'Rectangle';
+  const inner = childByLocalName(el, 'ReportItems');
+  if (inner) renderReportItems(inner, div, ctx);
+  return div;
+}
+
+function renderImage(el) {
+  const pos = getPos(el);
+  const div = document.createElement('div');
+  div.className = 'rdl-image';
+  div.setAttribute('style', styleToString(applyPos(pos)));
+  const src = textOf(el, 'Source') || '';
+  const val = textOf(el, 'Value') || '';
+  div.textContent = `🖼 Image (${src}${val ? ': ' + val : ''})`;
+  return div;
+}
+
+function renderLine(el) {
+  const pos = getPos(el);
+  const div = document.createElement('div');
+  div.className = 'rdl-line';
+  const s = applyPos(pos);
+  if (!pos.height) s['height'] = '1px';
+  if (!pos.width) s['width'] = '1px';
+  div.setAttribute('style', styleToString(s));
+  return div;
+}
+
+function getSubreportParams(subEl) {
+  const out = {};
+  const pe = childByLocalName(subEl, 'Parameters');
+  if (!pe) return out;
+  for (const p of childrenByLocalName(pe, 'Parameter')) {
+    const name = p.getAttribute('Name') || '';
+    const v = textOf(p, 'Value');
+    out[name] = v;
+  }
+  return out;
+}
+
+/* Resolve a single expression to a plain string in the current ctx (for passing into a subreport's param map). */
+function resolveExprToString(expr, ctx) {
+  return simulateExpr(expr, ctx.paramValues, ctx.fieldValues);
+}
+
+function renderSubreport(el, ctx) {
+  const pos = getPos(el);
+  const name = el.getAttribute('Name') || '';
+  const reportName = textOf(el, 'ReportName') || name;
+  const wrap = document.createElement('div');
+  wrap.className = 'rdl-subreport';
+  wrap.setAttribute('style', styleToString(applyPos(pos)));
+
+  // Parameter mapping for this subreport — resolve each value-expression in the current context
+  const paramMap = {};
+  const rawParams = getSubreportParams(el);
+  for (const [pname, expr] of Object.entries(rawParams)) {
+    paramMap[pname] = resolveExprToString(expr, ctx);
+  }
+
+  const loaded = state.subreports[reportName];
+  const headerLine = document.createElement('div');
+  headerLine.className = 'sub-header';
+  const paramSummary = Object.entries(paramMap).map(([k,v]) => `${k}=${v}`).join(', ');
+  headerLine.textContent = `📄 ${reportName}${paramSummary ? ' · ' + paramSummary : ''}`;
+  wrap.appendChild(headerLine);
+
+  const subBody = document.createElement('div');
+  subBody.className = 'sub-body';
+  subBody.style.width = '100%';
+  subBody.style.height = `calc(100% - 14px)`;
+  wrap.appendChild(subBody);
+
+  if (loaded && loaded.report) {
+    wrap.classList.add('loaded');
+    const subReport = loaded.report;
+    const bodyEl = childByLocalName(subReport, 'Body');
+    const items = childByLocalName(bodyEl, 'ReportItems');
+    if (items) {
+      const childCtx = { paramValues: paramMap, fieldValues: null };
+      renderReportItems(items, subBody, childCtx);
+    }
+  } else {
+    wrap.classList.add('missing');
+    const msg = document.createElement('div');
+    msg.innerHTML = `<b>${escapeHtml(reportName)}</b><br><span style="font-size:10px">click to load .rdl</span>`;
+    subBody.appendChild(msg);
+    wrap.style.cursor = 'pointer';
+    wrap.addEventListener('click', () => promptLoadSubreport(reportName));
+  }
+  return wrap;
+}
+
+function renderTable(el, ctx) {
+  const pos = getPos(el);
+  const wrap = document.createElement('div');
+  wrap.className = 'rdl-table';
+  wrap.setAttribute('style', styleToString(applyPos(pos)));
+  wrap.title = el.getAttribute('Name') || 'Table';
+
+  const table = document.createElement('table');
+  const colsEl = childByLocalName(el, 'TableColumns');
+  const colWidths = [];
+  if (colsEl) {
+    const colgroup = document.createElement('colgroup');
+    for (const c of childrenByLocalName(colsEl, 'TableColumn')) {
+      const w = toPx(textOf(c, 'Width'));
+      colWidths.push(w);
+      const col = document.createElement('col');
+      col.style.width = w + 'px';
+      colgroup.appendChild(col);
+    }
+    table.appendChild(colgroup);
+  }
+
+  const header = childByLocalName(el, 'Header');
+  if (header) renderTableRows(header, table, 'Header', colWidths, ctx);
+
+  const groupsEl = childByLocalName(el, 'TableGroups');
+  if (groupsEl) {
+    for (const g of childrenByLocalName(groupsEl, 'TableGroup')) {
+      const gh = childByLocalName(g, 'Header');
+      if (gh) renderTableRows(gh, table, 'GroupHeader', colWidths, ctx);
+    }
+  }
+
+  const details = childByLocalName(el, 'Details');
+  if (details) renderTableRows(details, table, 'Detail', colWidths, ctx);
+
+  if (groupsEl) {
+    const groups = childrenByLocalName(groupsEl, 'TableGroup');
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const gf = childByLocalName(groups[i], 'Footer');
+      if (gf) renderTableRows(gf, table, 'GroupFooter', colWidths, ctx);
+    }
+  }
+
+  const footer = childByLocalName(el, 'Footer');
+  if (footer) renderTableRows(footer, table, 'Footer', colWidths, ctx);
+
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function renderTableRows(container, table, bandLabel, colWidths, ctx) {
+  const rowsEl = childByLocalName(container, 'TableRows');
+  if (!rowsEl) return;
+  const rows = childrenByLocalName(rowsEl, 'TableRow');
+  if (!rows.length) return;
+
+  const bandRow = document.createElement('tr');
+  const bandCell = document.createElement('td');
+  bandCell.colSpan = Math.max(colWidths.length, 1);
+  bandCell.className = 'row-band';
+  bandCell.textContent = bandLabel;
+  bandRow.appendChild(bandCell);
+  table.appendChild(bandRow);
+
+  for (const row of rows) {
+    const tr = document.createElement('tr');
+    const h = toPx(textOf(row, 'Height'));
+    if (h) tr.style.height = h + 'px';
+    const cellsEl = childByLocalName(row, 'TableCells');
+    if (cellsEl) {
+      for (const cell of childrenByLocalName(cellsEl, 'TableCell')) {
+        const td = document.createElement('td');
+        td.className = 'rdl-cell';
+        const colSpan = textOf(cell, 'ColSpan');
+        if (colSpan) td.colSpan = parseInt(colSpan);
+        const items = childByLocalName(cell, 'ReportItems');
+        if (items) {
+          for (const child of items.children) {
+            const node = renderItem(child, ctx, false);
+            if (node) td.appendChild(node);
+          }
+        }
+        tr.appendChild(td);
+      }
+    }
+    table.appendChild(tr);
+  }
+}
+
+function renderList(el, ctx) {
+  const pos = getPos(el);
+  const wrap = document.createElement('div');
+  wrap.className = 'rdl-list';
+  wrap.setAttribute('style', styleToString(applyPos(pos)) + ';border:1px dashed #888;padding:6px;');
+  wrap.title = el.getAttribute('Name') || 'List';
+
+  const banner = document.createElement('div');
+  banner.className = 'row-band';
+  banner.style.position = 'relative';
+  banner.textContent = `List → ${textOf(el, 'DataSetName') || ''} (one instance per row)`;
+  wrap.appendChild(banner);
+
+  const inner = childByLocalName(el, 'ReportItems');
+  if (inner) {
+    const stage = document.createElement('div');
+    stage.style.position = 'relative';
+    let maxR = 0, maxB = 0;
+    for (const c of inner.children) {
+      const p = getPos(c);
+      maxR = Math.max(maxR, p.left + p.width);
+      maxB = Math.max(maxB, p.top + p.height);
+    }
+    stage.style.width = Math.max(maxR, pos.width || 0) + 'px';
+    stage.style.height = Math.max(maxB, 50) + 'px';
+    renderReportItems(inner, stage, ctx);
+    wrap.appendChild(stage);
+  }
+  return wrap;
+}
+
+function renderMatrix(el, ctx) {
+  const pos = getPos(el);
+  const wrap = document.createElement('div');
+  wrap.className = 'rdl-matrix';
+  wrap.setAttribute('style', styleToString(applyPos(pos)) + ';border:1px dashed #888;padding:4px;');
+  wrap.title = el.getAttribute('Name') || 'Matrix';
+  const banner = document.createElement('div');
+  banner.className = 'row-band';
+  banner.style.position = 'relative';
+  banner.textContent = `Matrix → ${textOf(el, 'DataSetName') || ''}`;
+  wrap.appendChild(banner);
+  const matrixCells = childByLocalName(el, 'MatrixCells');
+  if (matrixCells) {
+    const tbl = document.createElement('table');
+    tbl.style.borderCollapse = 'collapse';
+    for (const row of childrenByLocalName(matrixCells, 'MatrixRow')) {
+      const tr = document.createElement('tr');
+      for (const cell of childrenByLocalName(row, 'MatrixCell')) {
+        const td = document.createElement('td');
+        td.className = 'rdl-cell';
+        const items = childByLocalName(cell, 'ReportItems');
+        if (items) {
+          for (const c of items.children) {
+            const node = renderItem(c, ctx, false);
+            if (node) td.appendChild(node);
+          }
+        }
+        tr.appendChild(td);
+      }
+      tbl.appendChild(tr);
+    }
+    wrap.appendChild(tbl);
+  }
+  return wrap;
+}
+
+function renderItem(el, ctx, absolute = true) {
+  switch (el.localName) {
+    case 'Textbox':    return renderTextbox(el, ctx, absolute);
+    case 'Rectangle':  return renderRectangle(el, ctx);
+    case 'Image':      return renderImage(el);
+    case 'Line':       return renderLine(el);
+    case 'Subreport':  return renderSubreport(el, ctx);
+    case 'Table':      return renderTable(el, ctx);
+    case 'Matrix':     return renderMatrix(el, ctx);
+    case 'List':       return renderList(el, ctx);
+    case 'Chart': {
+      const div = document.createElement('div');
+      div.className = 'rdl-subreport missing';
+      div.setAttribute('style', styleToString(applyPos(getPos(el))));
+      div.textContent = '📊 Chart: ' + (el.getAttribute('Name') || '');
+      return div;
+    }
+    default: return null;
+  }
+}
+
+function renderReportItems(itemsEl, into, ctx) {
+  for (const child of itemsEl.children) {
+    const node = renderItem(child, ctx, true);
+    if (node) into.appendChild(node);
+  }
+}
+
+/* ----- Layout panel ----- */
+function renderLayout() {
+  const report = state.mainReport;
+  const panel = $('panel-layout');
+  panel.innerHTML = '';
+
+  const fieldValues = null;
+  const ctx = { paramValues: state.paramValues, fieldValues };
+
+  const widthEl = childByLocalName(report, 'Width');
+  const bodyEl  = childByLocalName(report, 'Body');
+  const pageHeader = childByLocalName(report, 'PageHeader');
+  const pageFooter = childByLocalName(report, 'PageFooter');
+
+  const reportWidth = toPx(widthEl ? widthEl.textContent : '8.5in');
+  const bodyHeight = toPx(textOf(bodyEl, 'Height')) || 800;
+
+  // Toolbar inside Layout
+  const tb = document.createElement('div');
+  tb.className = 'toolbar';
+  tb.innerHTML = `
+    <span class="hint">Page width is rendered at 96dpi. Subreports without a loaded RDL are shown as yellow placeholders — click one to load.</span>
+  `;
+  panel.appendChild(tb);
+
+  if (pageHeader) panel.appendChild(renderBand(pageHeader, reportWidth, 'Page Header', ctx));
+
+  const body = document.createElement('div');
+  body.className = 'report-canvas';
+  body.style.width = reportWidth + 'px';
+  body.style.minHeight = bodyHeight + 'px';
+  const itemsEl = childByLocalName(bodyEl, 'ReportItems');
+  if (itemsEl) renderReportItems(itemsEl, body, ctx);
+
+  const bodyLabel = document.createElement('div');
+  bodyLabel.style.textAlign = 'center';
+  bodyLabel.style.color = 'var(--muted)';
+  bodyLabel.style.margin = '12px 0 6px';
+  bodyLabel.style.fontSize = '11px';
+  bodyLabel.textContent = `Body — ${(reportWidth/96).toFixed(2)}in × ${(bodyHeight/96).toFixed(2)}in`;
+  panel.appendChild(bodyLabel);
+  panel.appendChild(body);
+
+  if (pageFooter) panel.appendChild(renderBand(pageFooter, reportWidth, 'Page Footer', ctx));
+}
+
+function renderBand(bandEl, width, label, ctx) {
+  const h = toPx(textOf(bandEl, 'Height')) || 60;
+  const wrapper = document.createElement('div');
+  wrapper.style.margin = '12px 0 6px';
+  const lbl = document.createElement('div');
+  lbl.style.textAlign = 'center';
+  lbl.style.color = 'var(--muted)';
+  lbl.style.fontSize = '11px';
+  lbl.style.marginBottom = '4px';
+  lbl.textContent = `${label} — ${(h/96).toFixed(2)}in`;
+  wrapper.appendChild(lbl);
+  const c = document.createElement('div');
+  c.className = 'report-canvas';
+  c.style.width = width + 'px';
+  c.style.minHeight = h + 'px';
+  c.style.background = '#fafafa';
+  const items = childByLocalName(bandEl, 'ReportItems');
+  if (items) renderReportItems(items, c, ctx);
+  wrapper.appendChild(c);
+  return wrapper;
+}
+
+/* ----- Datasets ----- */
+function renderDatasets() {
+  const report = state.mainReport;
+  const panel = $('panel-datasets');
+  panel.innerHTML = '';
+
+  const dsRoot = childByLocalName(report, 'DataSources');
+  if (dsRoot) {
+    const dsCard = document.createElement('div');
+    dsCard.className = 'card';
+    dsCard.innerHTML = `<div class="card-header"><span>Data Sources</span><span class="badge">${childrenByLocalName(dsRoot, 'DataSource').length}</span></div>`;
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    for (const ds of childrenByLocalName(dsRoot, 'DataSource')) {
+      const name = ds.getAttribute('Name') || '';
+      const ref = textOf(ds, 'DataSourceReference');
+      const conn = childByLocalName(ds, 'ConnectionProperties');
+      const dataProvider = conn ? textOf(conn, 'DataProvider') : '';
+      const connectString = conn ? textOf(conn, 'ConnectString') : '';
+      const div = document.createElement('div');
+      div.className = 'kv';
+      div.innerHTML = `
+        <div class="k">Name</div><div class="v">${escapeHtml(name)}</div>
+        ${ref ? `<div class="k">Reference</div><div class="v">${escapeHtml(ref)}</div>` : ''}
+        ${dataProvider ? `<div class="k">Provider</div><div class="v">${escapeHtml(dataProvider)}</div>` : ''}
+        ${connectString ? `<div class="k">Connect String</div><div class="v">${escapeHtml(connectString)}</div>` : ''}
+      `;
+      div.style.marginBottom = '8px';
+      body.appendChild(div);
+    }
+    dsCard.appendChild(body);
+    panel.appendChild(dsCard);
+  }
+
+  const dsetsRoot = childByLocalName(report, 'DataSets');
+  if (!dsetsRoot) {
+    panel.appendChild(emptyMsg('No DataSets'));
+    return;
+  }
+  const dsets = childrenByLocalName(dsetsRoot, 'DataSet');
+  for (const d of dsets) {
+    const name = d.getAttribute('Name') || '';
+    const query = childByLocalName(d, 'Query');
+    const cmdType = query ? textOf(query, 'CommandType') : '';
+    const cmdText = query ? textOf(query, 'CommandText') : '';
+    const dsName  = query ? textOf(query, 'DataSourceName') : '';
+    const queryParams = query ? childByLocalName(query, 'QueryParameters') : null;
+    const fieldsEl = childByLocalName(d, 'Fields');
+    const fields = fieldsEl ? childrenByLocalName(fieldsEl, 'Field') : [];
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="name">${escapeHtml(name)}</span>
+        <span class="badge">${fields.length} fields</span>
+        ${cmdType ? `<span class="badge">${escapeHtml(cmdType)}</span>` : ''}
+        ${dsName ? `<span class="badge">${escapeHtml(dsName)}</span>` : ''}
+      </div>
+    `;
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    if (cmdText) {
+      const label = document.createElement('div');
+      label.style.color = 'var(--muted)';
+      label.style.marginBottom = '4px';
+      label.textContent = (cmdType === 'StoredProcedure' ? 'Stored Procedure' : 'Command Text');
+      body.appendChild(label);
+      const pre = document.createElement('pre');
+      pre.className = 'sql';
+      pre.textContent = cmdText;
+      body.appendChild(pre);
+    }
+
+    if (queryParams) {
+      const qps = childrenByLocalName(queryParams, 'QueryParameter');
+      if (qps.length) {
+        const t = document.createElement('table');
+        t.className = 'fields';
+        t.innerHTML = `<thead><tr><th>Query Parameter</th><th>Value (expression)</th><th>Resolved</th></tr></thead>`;
+        const tb = document.createElement('tbody');
+        for (const qp of qps) {
+          const expr = textOf(qp, 'Value');
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td class="field-name">${escapeHtml(qp.getAttribute('Name') || '')}</td>
+                          <td class="field-expr">${escapeHtml(expr)}</td>
+                          <td class="field-data">${escapeHtml(simulateExpr(expr, state.paramValues))}</td>`;
+          tb.appendChild(tr);
+        }
+        t.appendChild(tb);
+        const lbl = document.createElement('div');
+        lbl.style.color = 'var(--muted)';
+        lbl.style.margin = '12px 0 4px';
+        lbl.textContent = 'Query Parameters';
+        body.appendChild(lbl);
+        body.appendChild(t);
+      }
+    }
+
+    if (fields.length) {
+      const t = document.createElement('table');
+      t.className = 'fields';
+      t.innerHTML = `<thead><tr><th>Field</th><th>DataField / Expression</th><th>Type</th></tr></thead>`;
+      const tb = document.createElement('tbody');
+      for (const f of fields) {
+        const fname = f.getAttribute('Name') || '';
+        const df = textOf(f, 'DataField');
+        const valEl = childByLocalName(f, 'Value');
+        const tp = childByLocalName(f, 'TypeName');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="field-name">${escapeHtml(fname)}</td>
+          <td class="${valEl ? 'field-expr' : 'field-data'}">${escapeHtml(df || (valEl ? valEl.textContent : ''))}</td>
+          <td>${escapeHtml(tp ? tp.textContent : '')}</td>`;
+        tb.appendChild(tr);
+      }
+      t.appendChild(tb);
+      const lbl = document.createElement('div');
+      lbl.style.color = 'var(--muted)';
+      lbl.style.margin = '12px 0 4px';
+      lbl.textContent = 'Fields';
+      body.appendChild(lbl);
+      body.appendChild(t);
+    }
+
+    card.appendChild(body);
+    panel.appendChild(card);
+  }
+}
+
+/* ----- Parameters tab (editable) ----- */
+function findImplicitParameterRefs(report) {
+  // Walk every text node looking for Parameters!X.Value / .Label references in expressions.
+  const names = new Set();
+  walkAll(report, (el) => {
+    if (el.children.length) return; // only leaf text nodes
+    const t = el.textContent;
+    if (!t || t.indexOf('Parameters!') < 0) return;
+    const re = /Parameters!(\w+)\.(Value|Label|Count|IsMultiValue)/g;
+    let m;
+    while ((m = re.exec(t)) !== null) names.add(m[1]);
+  });
+  return names;
+}
+
+function findStoredProcDatasetsWithoutParams(report) {
+  // Return [{datasetName, spName}] for SP datasets that don't declare QueryParameters.
+  const out = [];
+  const dsetsRoot = childByLocalName(report, 'DataSets');
+  if (!dsetsRoot) return out;
+  for (const d of childrenByLocalName(dsetsRoot, 'DataSet')) {
+    const q = childByLocalName(d, 'Query');
+    if (!q) continue;
+    const cmdType = textOf(q, 'CommandType');
+    if (cmdType !== 'StoredProcedure') continue;
+    const qp = childByLocalName(q, 'QueryParameters');
+    if (qp && qp.children.length) continue;
+    out.push({ datasetName: d.getAttribute('Name') || '', spName: textOf(q, 'CommandText') });
+  }
+  return out;
+}
+
+function collectParameters() {
+  const report = state.mainReport;
+  const result = [];
+  const seen = new Set();
+
+  const rps = childByLocalName(report, 'ReportParameters');
+  if (rps) {
+    for (const p of childrenByLocalName(rps, 'ReportParameter')) {
+      const name = p.getAttribute('Name') || '';
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const dataType = textOf(p, 'DataType');
+      const prompt = textOf(p, 'Prompt');
+      const nullable = textOf(p, 'Nullable') === 'true';
+      const allowBlank = textOf(p, 'AllowBlank') === 'true';
+      const multi = textOf(p, 'MultiValue') === 'true';
+      const hidden = textOf(p, 'Hidden') === 'true';
+      const defEl = childByLocalName(p, 'DefaultValue');
+      let def = '';
+      if (defEl) {
+        const vs = childByLocalName(defEl, 'Values');
+        if (vs) def = childrenByLocalName(vs, 'Value').map(v => v.textContent).join(', ');
+      }
+      const valid = [];
+      const vv = childByLocalName(p, 'ValidValues');
+      if (vv) {
+        const pv = childByLocalName(vv, 'ParameterValues');
+        if (pv) {
+          for (const v of childrenByLocalName(pv, 'ParameterValue')) {
+            valid.push({ label: textOf(v, 'Label') || textOf(v, 'Value'), value: textOf(v, 'Value') });
+          }
+        }
+      }
+      result.push({ name, dataType, prompt, nullable, allowBlank, multi, hidden, def, valid, source: 'ReportParameter' });
+    }
+  }
+
+  // Implicit parameters: any Parameters!X.Value reference that isn't already declared.
+  const implicit = findImplicitParameterRefs(report);
+  for (const name of implicit) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    result.push({
+      name,
+      dataType: 'String',
+      prompt: `Referenced by expressions but not declared in <ReportParameters>`,
+      source: 'Inferred',
+    });
+  }
+
+  // Stored-procedure datasets with no QueryParameters → SP parameters bound at runtime by the host.
+  // We can't see the SP signature without a DB connection, but we surface a placeholder so the user
+  // knows to add custom params.
+  const spDatasets = findStoredProcDatasetsWithoutParams(report);
+  for (const sp of spDatasets) {
+    const fakeName = `__SP__${sp.datasetName}`;
+    if (seen.has(fakeName)) continue;
+    seen.add(fakeName);
+    result.push({
+      name: fakeName,
+      displayName: sp.spName,
+      dataType: 'StoredProc',
+      prompt: `Dataset "${sp.datasetName}" calls ${sp.spName} but declares no QueryParameters. SSRS binds the SP's own parameters at runtime — they aren't in the RDL. Use "Add custom parameter" below to simulate.`,
+      source: 'RuntimeSP',
+      readOnly: true,
+    });
+  }
+
+  // Custom user-added parameters (entered via "Add custom parameter")
+  for (const [name, val] of Object.entries(state.paramValues)) {
+    if (seen.has(name)) continue;
+    if (!state.customParams || !state.customParams[name]) continue;
+    seen.add(name);
+    result.push({
+      name,
+      dataType: 'String',
+      source: 'Custom',
+      prompt: 'User-added parameter',
+    });
+  }
+
+  // Walk subreports for parameters they expect *as their input*.
+  walkAll(report, (el) => {
+    if (el.localName !== 'Subreport') return;
+    const rn = textOf(el, 'ReportName') || el.getAttribute('Name') || '';
+    const pe = childByLocalName(el, 'Parameters');
+    if (!pe) return;
+    for (const p of childrenByLocalName(pe, 'Parameter')) {
+      const subParamName = p.getAttribute('Name') || '';
+      const fullName = `${rn}.${subParamName}`;
+      if (seen.has(fullName)) continue;
+      seen.add(fullName);
+      const expr = textOf(p, 'Value');
+      result.push({
+        name: fullName,
+        dataType: 'String',
+        prompt: `Subreport ${rn} → ${subParamName}`,
+        expr,
+        source: 'SubreportParameter',
+      });
+    }
+  });
+
+  return result;
+}
+
+function renderParameters() {
+  const panel = $('panel-parameters');
+  panel.innerHTML = '';
+
+  const params = collectParameters();
+  $('pill-params').textContent = params.length || '0';
+  if (!params.length) {
+    panel.appendChild(emptyMsg('This report has no <ReportParameters> and no subreports with parameters.'));
+    return;
+  }
+
+  const tb = document.createElement('div');
+  tb.className = 'toolbar';
+  tb.innerHTML = `
+    <button class="btn" id="applyParams">Apply &amp; re-render</button>
+    <button class="btn secondary" id="addCustomParam">+ Add custom parameter</button>
+    <button class="btn secondary" id="clearParams">Clear all</button>
+    <span class="hint">
+      Values are substituted into <code>Parameters!X.Value</code> in the Layout Preview only.
+      Dataset queries are <b>not</b> executed, so <code>{FieldName}</code> placeholders remain.
+    </span>
+  `;
+  panel.appendChild(tb);
+
+  // Notice about SP-driven parameters
+  const spDatasets = findStoredProcDatasetsWithoutParams(state.mainReport);
+  if (spDatasets.length) {
+    const note = document.createElement('div');
+    note.className = 'card';
+    note.innerHTML = `
+      <div class="card-header"><span style="color:var(--warn)">⚠ Runtime-bound stored-procedure parameters</span></div>
+      <div class="card-body" style="font-size:12px;line-height:1.5">
+        This report runs ${spDatasets.length} stored procedure${spDatasets.length>1?'s':''} without declared <code>&lt;QueryParameters&gt;</code>:
+        <ul style="margin:6px 0">${spDatasets.map(s => `<li><code>${escapeHtml(s.spName)}</code> (dataset <code>${escapeHtml(s.datasetName)}</code>)</li>`).join('')}</ul>
+        SSRS auto-binds the SP's own parameters at runtime — they aren't in the RDL.
+        To preview values that <b>would</b> have come from this query, use
+        <b>+ Add custom parameter</b> to supply any name/value (e.g. <code>PaymentCheckGUID</code> = a GUID).
+        Substitution applies wherever an expression references <code>Parameters!PaymentCheckGUID.Value</code>.
+      </div>`;
+    panel.appendChild(note);
+  }
+
+  const form = document.createElement('div');
+  form.className = 'param-form';
+
+  for (const p of params) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const sourceBadgeClass = p.source === 'Inferred' ? 'warn'
+                            : p.source === 'RuntimeSP' ? 'bad'
+                            : p.source === 'Custom' ? 'good' : '';
+    const badges = [
+      `<span class="badge ${sourceBadgeClass}">${escapeHtml(p.source)}</span>`,
+      p.dataType ? `<span class="badge">${escapeHtml(p.dataType)}</span>` : '',
+      p.multi ? `<span class="badge">multi</span>` : '',
+      p.nullable ? `<span class="badge">nullable</span>` : '',
+      p.allowBlank ? `<span class="badge">allow blank</span>` : '',
+      p.hidden ? `<span class="badge bad">hidden</span>` : '',
+    ].filter(Boolean).join('');
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="name">${escapeHtml(p.displayName || p.name)}</span>
+        ${badges}
+      </div>
+    `;
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    const kv = document.createElement('div');
+    kv.className = 'kv';
+    let rows = '';
+    if (p.prompt) rows += `<div class="k">Prompt</div><div class="v">${escapeHtml(p.prompt)}</div>`;
+    if (p.def) rows += `<div class="k">Default</div><div class="v">${escapeHtml(p.def)}</div>`;
+    if (p.expr) rows += `<div class="k">Expression</div><div class="v">${escapeHtml(p.expr)}</div>`;
+    kv.innerHTML = rows;
+    body.appendChild(kv);
+
+    if (p.readOnly) {
+      card.appendChild(body);
+      form.appendChild(card);
+      continue;
+    }
+
+    const input = document.createElement('div');
+    input.style.marginTop = '10px';
+    input.style.display = 'flex';
+    input.style.gap = '8px';
+    input.style.alignItems = 'center';
+
+    let inputEl;
+    if (p.valid && p.valid.length) {
+      inputEl = document.createElement('select');
+      const blank = document.createElement('option');
+      blank.value = ''; blank.textContent = '— select —';
+      inputEl.appendChild(blank);
+      for (const v of p.valid) {
+        const o = document.createElement('option');
+        o.value = v.value; o.textContent = `${v.label} (${v.value})`;
+        inputEl.appendChild(o);
+      }
+    } else {
+      inputEl = document.createElement('input');
+      inputEl.type = 'text';
+      inputEl.placeholder = p.dataType === 'DateTime' ? 'YYYY-MM-DD' :
+                            (p.name.toLowerCase().includes('guid') || p.name.toLowerCase().includes('id')
+                              ? '00000000-0000-0000-0000-000000000000' : '');
+    }
+    inputEl.dataset.param = p.name;
+    if (state.paramValues[p.name] != null) inputEl.value = state.paramValues[p.name];
+
+    const lbl = document.createElement('label');
+    lbl.style.color = 'var(--muted)';
+    lbl.textContent = 'Value:';
+    input.appendChild(lbl);
+    input.appendChild(inputEl);
+
+    body.appendChild(input);
+    card.appendChild(body);
+    form.appendChild(card);
+  }
+  panel.appendChild(form);
+
+  $('applyParams').addEventListener('click', () => {
+    for (const el of form.querySelectorAll('input[data-param], select[data-param]')) {
+      const v = el.value;
+      if (v === '' || v == null) delete state.paramValues[el.dataset.param];
+      else state.paramValues[el.dataset.param] = v;
+    }
+    renderLayout();
+    renderDatasets();
+    flashTab('layout');
+  });
+  $('clearParams').addEventListener('click', () => {
+    state.paramValues = {};
+    state.customParams = {};
+    for (const el of form.querySelectorAll('input[data-param], select[data-param]')) el.value = '';
+    renderParameters();
+    renderLayout();
+    renderDatasets();
+  });
+  $('addCustomParam').addEventListener('click', () => {
+    // Read current values from the form first so we don't lose them on re-render
+    for (const el of form.querySelectorAll('input[data-param], select[data-param]')) {
+      const v = el.value;
+      if (v === '' || v == null) delete state.paramValues[el.dataset.param];
+      else state.paramValues[el.dataset.param] = v;
+    }
+    const name = (prompt('Parameter name (no spaces, no "Parameters!" prefix). Example: PaymentCheckGUID') || '').trim();
+    if (!name) return;
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      alert('Invalid parameter name. Use letters, digits, underscore; must start with a letter or underscore.');
+      return;
+    }
+    const val = (prompt(`Value for ${name}:`, '') || '');
+    state.customParams[name] = true;
+    state.paramValues[name] = val;
+    renderParameters();
+    renderLayout();
+    renderDatasets();
+  });
+}
+
+/* ----- Subreports tab ----- */
+function collectSubreports() {
+  // Walk the main report (and currently loaded subreports) to find all unique ReportName references
+  const found = new Map(); // reportName -> { reportName, usedBy: [{parent, paramMap}] }
+  function walk(report, parentLabel) {
+    walkAll(report, (el) => {
+      if (el.localName !== 'Subreport') return;
+      const rn = textOf(el, 'ReportName') || el.getAttribute('Name');
+      if (!rn) return;
+      if (!found.has(rn)) found.set(rn, { reportName: rn, usedBy: [] });
+      const paramMap = {};
+      const pe = childByLocalName(el, 'Parameters');
+      if (pe) {
+        for (const p of childrenByLocalName(pe, 'Parameter')) {
+          paramMap[p.getAttribute('Name')] = textOf(p, 'Value');
+        }
+      }
+      found.get(rn).usedBy.push({ parent: parentLabel, paramMap });
+    });
+  }
+  walk(state.mainReport, 'main report');
+  // Also walk into loaded subreports recursively
+  for (const [rn, info] of Object.entries(state.subreports)) {
+    if (info && info.report) walk(info.report, rn);
+  }
+  return Array.from(found.values());
+}
+
+function renderSubreportsTab() {
+  const panel = $('panel-subreports');
+  panel.innerHTML = '';
+
+  const subs = collectSubreports();
+  const loaded = subs.filter(s => state.subreports[s.reportName]).length;
+  const pill = $('pill-subs');
+  pill.textContent = subs.length ? `${loaded}/${subs.length}` : '0';
+  pill.className = 'pill ' + (subs.length === 0 ? '' : (loaded === subs.length ? 'good' : 'warn'));
+
+  if (!subs.length) {
+    panel.appendChild(emptyMsg('No <Subreport> elements found.'));
+    return;
+  }
+
+  const tb = document.createElement('div');
+  tb.className = 'toolbar';
+  tb.innerHTML = `
+    <button class="btn" id="pickSubFolder">Match from folder…</button>
+    <button class="btn secondary" id="clearSubs">Clear all subreports</button>
+    <input type="file" id="subFolderPicker" webkitdirectory directory multiple style="display:none" />
+    <span class="hint">"Match from folder" loads every .rdl in the folder and auto-matches them by <code>ReportName</code> (filename without extension).</span>
+  `;
+  panel.appendChild(tb);
+
+  for (const s of subs) {
+    const info = state.subreports[s.reportName];
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="name">${escapeHtml(s.reportName)}</span>
+        ${info
+          ? `<span class="badge good">loaded · ${escapeHtml(info.file?.name || '(in-memory)')}</span>`
+          : `<span class="badge warn">not loaded</span>`}
+        <span class="badge">${s.usedBy.length} usage${s.usedBy.length>1?'s':''}</span>
+      </div>
+    `;
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    const usageList = document.createElement('div');
+    usageList.style.fontSize = '12px';
+    usageList.style.marginBottom = '10px';
+    usageList.innerHTML = s.usedBy.map(u => {
+      const pmap = Object.entries(u.paramMap)
+        .map(([k,v]) => `<span style="color:var(--attr)">${escapeHtml(k)}</span>=<span style="color:var(--warn)">${escapeHtml(v)}</span>`).join(', ');
+      return `<div style="margin-bottom:4px"><span style="color:var(--muted)">used by:</span> ${escapeHtml(u.parent)} <span style="color:var(--muted)">→ params:</span> ${pmap || '(none)'}</div>`;
+    }).join('');
+    body.appendChild(usageList);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+    actions.style.alignItems = 'center';
+    actions.style.flexWrap = 'wrap';
+
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = '.rdl,.xml';
+    picker.style.display = 'none';
+    picker.addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const t = await f.text();
+      const doc = parseXml(t);
+      if (!doc) return;
+      state.subreports[s.reportName] = { doc, report: doc.documentElement, file: f, paramMap: {} };
+      refreshAll();
+    });
+    body.appendChild(picker);
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn small';
+    loadBtn.textContent = info ? 'Replace…' : 'Load RDL…';
+    loadBtn.addEventListener('click', () => picker.click());
+    actions.appendChild(loadBtn);
+
+    if (info) {
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'btn small secondary';
+      clearBtn.textContent = 'Unload';
+      clearBtn.addEventListener('click', () => {
+        delete state.subreports[s.reportName];
+        refreshAll();
+      });
+      actions.appendChild(clearBtn);
+    }
+
+    body.appendChild(actions);
+    card.appendChild(body);
+    panel.appendChild(card);
+  }
+
+  $('pickSubFolder').addEventListener('click', () => $('subFolderPicker').click());
+  $('subFolderPicker').addEventListener('change', async (e) => {
+    await ingestFiles(Array.from(e.target.files), { isFolder: true, dontReplaceMain: true });
+    refreshAll();
+  });
+  $('clearSubs').addEventListener('click', () => {
+    state.subreports = {};
+    refreshAll();
+  });
+}
+
+function promptLoadSubreport(reportName) {
+  // Switch to subreports tab and scroll to that card
+  switchTab('subreports');
+  setTimeout(() => {
+    const cards = document.querySelectorAll('#panel-subreports .card');
+    for (const c of cards) {
+      if (c.querySelector('.name')?.textContent === reportName) {
+        c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        c.style.outline = '2px solid var(--accent)';
+        setTimeout(() => c.style.outline = '', 1500);
+        break;
+      }
+    }
+  }, 50);
+}
+
+/* ----- Summary ----- */
+function renderSummary(fileMeta) {
+  const report = state.mainReport;
+  const panel = $('panel-summary');
+  panel.innerHTML = '';
+
+  const dsCount = (childByLocalName(report, 'DataSources')?.children.length) || 0;
+  const dsetsCount = (childByLocalName(report, 'DataSets')?.children.length) || 0;
+  const paramsCount = (childByLocalName(report, 'ReportParameters')?.children.length) || 0;
+
+  const counts = { Textbox:0, Table:0, Matrix:0, List:0, Rectangle:0, Image:0, Subreport:0, Chart:0, Line:0 };
+  walkAll(report, (el) => { if (el.localName in counts) counts[el.localName]++; });
+
+  const widthIn = toPx(textOf(report, 'Width')) / 96;
+  const bodyHeightIn = toPx(textOf(childByLocalName(report, 'Body'), 'Height')) / 96;
+  const author = textOf(report, 'Author');
+  const desc = textOf(report, 'Description');
+
+  const grid = document.createElement('div');
+  grid.className = 'summary-grid';
+  function tile(label, value, sub) {
+    return `<div class="summary-tile"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+  }
+  grid.innerHTML = [
+    tile('File', escapeHtml(fileMeta.name), `${(fileMeta.size/1024).toFixed(1)} KB`),
+    tile('Page Size', `${widthIn.toFixed(2)}″ × ${bodyHeightIn.toFixed(2)}″`, 'width × body height'),
+    tile('Data Sources', dsCount),
+    tile('Datasets', dsetsCount),
+    tile('Report Parameters', paramsCount),
+    tile('Subreports', counts.Subreport, `${Object.keys(state.subreports).length} loaded`),
+    tile('Textboxes', counts.Textbox),
+    tile('Tables', counts.Table, `Matrix: ${counts.Matrix} · List: ${counts.List}`),
+  ].join('');
+  panel.appendChild(grid);
+
+  if (author || desc) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="card-header">Report Info</div>`;
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    const kv = document.createElement('div');
+    kv.className = 'kv';
+    let rows = '';
+    if (author) rows += `<div class="k">Author</div><div class="v">${escapeHtml(author)}</div>`;
+    if (desc)   rows += `<div class="k">Description</div><div class="v">${escapeHtml(desc)}</div>`;
+    kv.innerHTML = rows;
+    body.appendChild(kv);
+    card.appendChild(body);
+    panel.appendChild(card);
+  }
+
+  const code = textOf(report, 'Code');
+  if (code) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="card-header">Custom Code (VB)</div>`;
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    const pre = document.createElement('pre');
+    pre.className = 'sql';
+    pre.textContent = code;
+    body.appendChild(pre);
+    card.appendChild(body);
+    panel.appendChild(card);
+  }
+}
+
+/* ----- Raw tree ----- */
+function renderRaw() {
+  const panel = $('panel-raw');
+  panel.innerHTML = '';
+  const tree = document.createElement('div');
+  tree.className = 'tree';
+  tree.appendChild(renderNode(state.mainDoc.documentElement, true));
+  panel.appendChild(tree);
+}
+function renderNode(node, openByDefault = false) {
+  const hasChildren = Array.from(node.children).length > 0;
+  if (!hasChildren) {
+    const div = document.createElement('div');
+    div.className = 'leaf';
+    const text = node.textContent.trim();
+    div.innerHTML = `<span class="t-tag">&lt;${node.localName}&gt;</span> <span class="t-text">${escapeHtml(text)}</span>`;
+    return div;
+  }
+  const det = document.createElement('details');
+  if (openByDefault) det.open = true;
+  const sum = document.createElement('summary');
+  let attrs = '';
+  for (const a of node.attributes) {
+    attrs += ` <span class="t-attr-n">${a.name}</span>=<span class="t-attr-v">"${escapeHtml(a.value)}"</span>`;
+  }
+  sum.innerHTML = `<span class="t-tag">&lt;${node.localName}${attrs}&gt;</span>`;
+  det.appendChild(sum);
+  for (const c of node.children) det.appendChild(renderNode(c));
+  return det;
+}
+
+function emptyMsg(msg) {
+  const d = document.createElement('div');
+  d.className = 'empty';
+  d.textContent = msg;
+  return d;
+}
+
+/* ----- File ingestion ----- */
+function parseXml(text) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'application/xml');
+  const err = doc.querySelector('parsererror');
+  if (err) {
+    alert('XML parse error:\n' + err.textContent);
+    return null;
+  }
+  return doc;
+}
+
+async function ingestFiles(files, { isFolder = false, dontReplaceMain = false } = {}) {
+  // Build a library of every .rdl file by basename, and figure out which one
+  // is the "main" report (the one with the most Subreport references that
+  // reference *other* files in this set), if not already loaded.
+  const rdlFiles = files.filter(f => /\.(rdl|xml)$/i.test(f.name));
+  if (!rdlFiles.length) return;
+
+  const parsed = [];
+  for (const f of rdlFiles) {
+    const t = await f.text();
+    const doc = parseXml(t);
+    if (!doc) continue;
+    const base = f.name.replace(/\.(rdl|xml)$/i, '');
+    parsed.push({ file: f, doc, base });
+    state.library[base.toLowerCase()] = { file: f, doc, name: base };
+  }
+  if (!parsed.length) return;
+
+  if (!dontReplaceMain) {
+    // Decide main: prefer the file whose Subreport children point to the most other files in the set
+    let best = parsed[0];
+    let bestScore = -1;
+    for (const p of parsed) {
+      let score = 0;
+      walkAll(p.doc.documentElement, (el) => {
+        if (el.localName === 'Subreport') {
+          const rn = (textOf(el, 'ReportName') || '').toLowerCase();
+          if (rn && parsed.some(o => o.base.toLowerCase() === rn)) score++;
+        }
+      });
+      // Prefer non-"Sub*" filenames slightly
+      if (!/sub/i.test(p.base)) score += 0.1;
+      if (score > bestScore) { best = p; bestScore = score; }
+    }
+    loadMainFromParsed(best);
+  }
+
+  // Auto-match subreports
+  autoMatchSubreports();
+  refreshAll();
+}
+
+function autoMatchSubreports() {
+  if (!state.mainReport) return;
+  const referenced = new Set();
+  walkAll(state.mainReport, (el) => {
+    if (el.localName === 'Subreport') {
+      const rn = textOf(el, 'ReportName');
+      if (rn) referenced.add(rn);
+    }
+  });
+  // Also include subreports of subreports recursively
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const rn of Array.from(referenced)) {
+      const entry = state.library[rn.toLowerCase()];
+      if (entry) {
+        walkAll(entry.doc.documentElement, (el) => {
+          if (el.localName === 'Subreport') {
+            const inner = textOf(el, 'ReportName');
+            if (inner && !referenced.has(inner)) {
+              referenced.add(inner);
+              changed = true;
+            }
+          }
+        });
+      }
+    }
+  }
+  for (const rn of referenced) {
+    if (state.subreports[rn]) continue;
+    const entry = state.library[rn.toLowerCase()];
+    if (entry) {
+      state.subreports[rn] = { doc: entry.doc, report: entry.doc.documentElement, file: entry.file, paramMap: {} };
+    }
+  }
+}
+
+function loadMainFromParsed(p) {
+  state.mainFile = p.file;
+  state.mainDoc = p.doc;
+  state.mainReport = p.doc.documentElement;
+  state.paramValues = {};
+  state.customParams = {};
+
+  $('dropZone').style.display = 'none';
+  $('tabs').style.display = 'flex';
+  $('fileName').textContent = p.file.name;
+  $('reloadBtn').style.display = 'inline-block';
+  $('reportMeta').textContent =
+    `${(p.file.size/1024).toFixed(1)} KB · ${p.doc.documentElement.namespaceURI || '(no namespace)'}`;
+}
+
+function loadSingleFile(file, text) {
+  const doc = parseXml(text);
+  if (!doc) return;
+  if (doc.documentElement.localName !== 'Report') {
+    alert('Root element is <' + doc.documentElement.localName + '> — expected <Report>. Will still try to render.');
+  }
+  loadMainFromParsed({ file, doc, base: file.name.replace(/\.(rdl|xml)$/i, '') });
+  state.library[file.name.replace(/\.(rdl|xml)$/i, '').toLowerCase()] = { file, doc, name: file.name.replace(/\.(rdl|xml)$/i, '') };
+  autoMatchSubreports();
+  refreshAll();
+}
+
+function refreshAll() {
+  if (!state.mainReport) return;
+  renderSummary({ name: state.mainFile.name, size: state.mainFile.size });
+  renderLayout();
+  renderDatasets();
+  renderParameters();
+  renderSubreportsTab();
+  renderRaw();
+  if (!document.querySelector('.tab.active')) switchTab('summary');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+function flashTab(name) {
+  const t = document.querySelector(`.tab[data-tab="${name}"]`);
+  if (!t) return;
+  const old = t.style.background;
+  t.style.background = 'rgba(0,122,204,0.25)';
+  setTimeout(() => t.style.background = old, 350);
+}
+
+/* ----- Event wiring ----- */
+$('filePicker').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  f.text().then(t => loadSingleFile(f, t));
+});
+$('folderPicker').addEventListener('change', async (e) => {
+  await ingestFiles(Array.from(e.target.files));
+});
+$('reloadBtn').addEventListener('click', () => {
+  if (state.mainFile) state.mainFile.text().then(t => loadSingleFile(state.mainFile, t));
+});
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
+});
+
+const dz = $('dropZone');
+['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('dragover'); }));
+dz.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  f.text().then(t => loadSingleFile(f, t));
+});
+
+document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
+document.body.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const fl = Array.from(e.dataTransfer.files).filter(f => /\.(rdl|xml)$/i.test(f.name));
+  if (!fl.length) return;
+  if (fl.length === 1) {
+    fl[0].text().then(t => loadSingleFile(fl[0], t));
+  } else {
+    ingestFiles(fl);
+  }
+});
+</script>
+</body>
+</html>
