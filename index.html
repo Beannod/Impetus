@@ -1,995 +1,503 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CUO Report Wizard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utilities</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('migrationGeneratorTheme');
+        if (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <style>
-        :root {
-            --bg:        #f5f6f8;
-            --card:      #ffffff;
-            --ink:       #1b2230;
-            --muted:     #6b7280;
-            --line:      #e6e8ee;
-            --accent:    #4f46e5;
-            --accent-d:  #4338ca;
-            --accent-sf: #eef0ff;
-            --radius:    12px;
-            --shadow:    0 1px 2px rgba(16,24,40,.04), 0 6px 20px rgba(16,24,40,.06);
-        }
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-2: #fafbfc;
+      --border: #e6e9ef;
+      --border-strong: #d6dbe5;
+      --text: #0f172a;
+      --text-2: #475569;
+      --text-3: #94a3b8;
+      --primary: #6366f1;
+      --primary-2: #818cf8;
+      --primary-strong: #4f46e5;
+      --primary-soft: #eef2ff;
+      --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+      --shadow-md: 0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04);
+      --shadow-lg: 0 12px 32px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.05);
+      --shadow-glow: 0 8px 24px rgba(99,102,241,0.30);
+    }
 
-        * { box-sizing: border-box; }
+    [data-theme="dark"] {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-2: #1c2128;
+      --border: #30363d;
+      --border-strong: #484f58;
+      --text: #e6edf3;
+      --text-2: #8b949e;
+      --text-3: #6e7681;
+      --primary-soft: rgba(99,102,241,0.18);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
+    }
 
-        body {
-            font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-            color: var(--ink);
-            background: var(--bg);
-            margin: 0;
-            padding: 22px 16px 56px;
-            font-size: 13px;
-            line-height: 1.45;
-        }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
 
-        .wrap { max-width: 1200px; margin: 0 auto; }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(800px 400px at 10% 0%, rgba(99,102,241,0.10), transparent 60%),
+        radial-gradient(600px 300px at 90% 10%, rgba(168,85,247,0.07), transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
 
-        /* Single-column form that uses the full width for a better view.
-           The Output SQL is a small box you only copy from — it stays compact
-           instead of filling the page. */
-        .layout { display: block; }
-        .col-output pre { max-height: 200px; }
+    [data-theme="dark"] body::before {
+      background:
+        radial-gradient(800px 400px at 10% 0%, rgba(99,102,241,0.06), transparent 60%),
+        radial-gradient(600px 300px at 90% 10%, rgba(168,85,247,0.04), transparent 60%);
+    }
 
-        /* ---- Header ---- */
-        .hdr { display: flex; align-items: center; gap: 11px; margin: 0 0 16px; }
-        .hdr .mark {
-            width: 34px; height: 34px; border-radius: 9px; flex: none;
-            background: linear-gradient(135deg, var(--accent), #7c6cf0);
-            color: #fff; font-weight: 700; font-size: 16px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: var(--shadow);
-        }
-        .hdr h1 { font-size: 17px; margin: 0; letter-spacing: -.2px; }
-        .hdr p  { margin: 1px 0 0; color: var(--muted); font-size: 12px; }
-        .hdr code { background: var(--accent-sf); color: var(--accent-d);
-            padding: 1px 5px; border-radius: 5px; font-size: 11.5px; }
+    /* ── top nav ── */
+    .topnav {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 32px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: saturate(180%) blur(16px);
+      -webkit-backdrop-filter: saturate(180%) blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
 
-        /* ---- Cards ---- */
-        .box {
-            background: var(--card);
-            border: 1px solid var(--line);
-            padding: 16px 18px;
-            margin-bottom: 14px;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-        }
+    [data-theme="dark"] .topnav {
+      background: rgba(22,27,34,0.92);
+    }
 
-        h3 { font-size: 14px; margin: 0 0 10px; letter-spacing: -.1px; }
-        h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
-             color: var(--muted); margin: 16px 0 8px; }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
 
-        /* ---- Fields ---- */
-        label { display: block; margin: 0 0 4px; font-size: 11.5px; font-weight: 600;
-                color: #3b4356; letter-spacing: .2px; }
+    .nav-brand-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6 60%, #ec4899);
+      display: grid; place-items: center;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.28);
+    }
 
-        input, textarea, select {
-            width: 100%;
-            padding: 8px 11px;
-            margin: 0 0 12px;
-            font: inherit;
-            color: var(--ink);
-            background: #fdfdfe;
-            border: 1px solid #d6dae3;
-            border-radius: 9px;
-            transition: border-color .12s, box-shadow .12s, background .12s;
-        }
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: var(--accent);
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(79,70,229,.14);
-        }
-        input::placeholder, textarea::placeholder { color: #9aa1ae; }
-        textarea { resize: vertical; min-height: 92px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
-        textarea.short { min-height: 58px; }   /* compact — expand by dragging the corner */
+    .nav-brand-icon svg { width: 18px; height: 18px; fill: #fff; }
 
-        /* ---- Buttons ---- */
-        button {
-            font: inherit; font-weight: 600; cursor: pointer;
-            padding: 9px 16px; border-radius: 9px;
-            border: 1px solid #d6dae3; background: #fff; color: var(--ink);
-            transition: background .12s, border-color .12s, transform .04s;
-        }
-        button:hover { background: #f6f7fb; border-color: #c4c9d4; }
-        button:active { transform: translateY(1px); }
+    .nav-brand-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
 
-        .btn-primary {
-            background: var(--accent); border-color: var(--accent); color: #fff;
-            box-shadow: 0 1px 2px rgba(79,70,229,.35);
-        }
-        .btn-primary:hover { background: var(--accent-d); border-color: var(--accent-d); }
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
 
-        .btn-add {
-            background: var(--accent-sf); border: 1px dashed #b9bdf0; color: var(--accent-d);
-            width: 100%; padding: 9px;
-        }
-        .btn-add:hover { background: #e6e8ff; border-color: var(--accent); }
+    .theme-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-2);
+      font-size: 12.5px; font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .15s ease;
+    }
+    .theme-btn:hover { background: var(--surface-2); border-color: var(--border-strong); color: var(--text); }
+    .theme-btn svg { width: 14px; height: 14px; }
 
-        .browsebtn {
-            width: auto; padding: 4px 10px; font-size: 11.5px; font-weight: 600;
-            margin: 0; background: var(--accent-sf); border: 1px solid #c9ccf3;
-            color: var(--accent-d); border-radius: 7px;
-        }
-        .browsebtn:hover { background: #e6e8ff; }
+    /* ── hero ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px 100px;
+      text-align: center;
+    }
 
-        /* ---- Mode segmented control ---- */
-        .step { display: block; font-size: 11px; text-transform: uppercase;
-                letter-spacing: .6px; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
-        .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .seg-item {
-            display: block; margin: 0; padding: 12px 14px; cursor: pointer;
-            border: 1px solid #d6dae3; border-radius: 10px; background: #fdfdfe;
-            transition: border-color .12s, box-shadow .12s, background .12s;
-        }
-        .seg-item:hover { border-color: #c4c9d4; background: #fff; }
-        .seg-item input { position: absolute; opacity: 0; width: 0; height: 0; }
-        .seg-item .seg-title { display: block; font-weight: 700; font-size: 13px; color: var(--ink); }
-        .seg-item .seg-sub   { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-        .seg-item:has(input:checked) {
-            border-color: var(--accent); background: var(--accent-sf);
-            box-shadow: 0 0 0 3px rgba(79,70,229,.12);
-        }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      background: var(--primary-soft);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary-strong);
+      margin-bottom: 28px;
+      letter-spacing: 0.01em;
+    }
 
-        /* ---- Layout helpers ---- */
-        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .hint { color: var(--muted); font-size: 11.5px; margin: 0 0 10px; }
-        .hint code { background: #eef0f4; padding: 1px 5px; border-radius: 5px; font-size: 11px; }
-        .hidden { display: none; }
+    .hero-badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
 
-        .subreport {
-            border: 1px solid var(--line); background: #fbfbfd;
-            padding: 12px 13px; margin-bottom: 10px; border-radius: 10px;
-        }
-        .subreport .remove {
-            width: auto; padding: 4px 10px; font-size: 11.5px; margin: 4px 0 0;
-            background: #fff5f5; border-color: #f3c6c6; color: #b42318;
-        }
-        .subreport .remove:hover { background: #fde7e7; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
 
-        /* ---- Detected files table ---- */
-        #browseDebug table { width: 100%; border-collapse: collapse; font-size: 11.5px;
-            background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-        #browseDebug th { text-align: left; background: #f7f8fa; color: var(--muted);
-            font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; padding: 6px 10px; }
-        #browseDebug td { padding: 5px 10px; border-top: 1px solid var(--line); }
+    .hero-title {
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1px;
+      line-height: 1.12;
+      margin-bottom: 20px;
+      max-width: 720px;
+    }
 
-        /* ---- Action bar + output ---- */
-        .actions { display: flex; gap: 10px; align-items: center; margin: 4px 0 14px; }
-        .out-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 8px; }
-        .out-head h3 { margin: 0; }
-        pre {
-            background: #0f1729; color: #d7def0;
-            padding: 14px 16px; margin: 0;
-            overflow: auto; white-space: pre-wrap; word-break: break-word;
-            border: 1px solid #1e293b; border-radius: var(--radius);
-            font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-            font-size: 12px; line-height: 1.5; min-height: 60px;
-        }
-        pre:empty::before { content: "Generated SQL will appear here…"; color: #5b6680; }
+    .hero-title span {
+      background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
 
-        /* ---- Read Me (How to use) modal ---- */
-        .readme-btn { margin-left: auto; white-space: nowrap; }
-        .modal-overlay {
-            position: fixed; inset: 0; z-index: 50; display: none;
-            background: rgba(16,24,40,.45);
-            align-items: flex-start; justify-content: center;
-            padding: 40px 16px; overflow: auto;
-        }
-        .modal-overlay.open { display: flex; }
-        .modal {
-            background: var(--card); border: 1px solid var(--line);
-            border-radius: var(--radius); box-shadow: var(--shadow);
-            max-width: 740px; width: 100%; padding: 20px 26px 26px;
-        }
-        .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 6px; }
-        .modal-head h2 { font-size: 16px; margin: 0; }
-        .modal .close { width: auto; padding: 4px 11px; }
-        .modal h4 { margin: 16px 0 6px; color: var(--accent-d); }
-        .modal ol, .modal ul { margin: 6px 0; padding-left: 20px; }
-        .modal li { margin: 4px 0; }
-        .modal code { background: var(--accent-sf); color: var(--accent-d);
-            padding: 1px 5px; border-radius: 5px; font-size: 11.5px; }
-        .modal .layoutbox { min-height: 0; font-size: 11.5px; }
-    </style>
+    .hero-sub {
+      font-size: 18px;
+      color: var(--text-2);
+      line-height: 1.6;
+      max-width: 520px;
+      margin-bottom: 48px;
+    }
+
+    /* ── tool cards ── */
+    .tools-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      max-width: 1280px;
+    }
+
+    .tool-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 28px 28px 24px;
+      width: 300px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      text-decoration: none;
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      cursor: pointer;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary-2);
+      box-shadow: var(--shadow-lg), 0 0 0 3px rgba(99,102,241,0.12);
+    }
+
+    .tool-card-icon {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: grid; place-items: center;
+      box-shadow: 0 6px 18px rgba(99,102,241,0.30);
+      flex-shrink: 0;
+    }
+
+    .tool-card-icon svg { width: 24px; height: 24px; fill: #fff; }
+
+    .tool-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.1px;
+    }
+
+    .tool-card-desc {
+      font-size: 13.5px;
+      color: var(--text-2);
+      line-height: 1.55;
+      flex: 1;
+    }
+
+    .tool-card-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      font-size: 13.5px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: var(--shadow-glow);
+      transition: filter .15s, transform .15s, box-shadow .15s;
+      font-family: inherit;
+      text-decoration: none;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .tool-card-cta:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(99,102,241,0.38);
+    }
+
+    .tool-card-cta svg { width: 15px; height: 15px; }
+
+    .tool-card-body { flex: 1; }
+
+    .tool-card-cta.coming-soon {
+      background: var(--surface-3);
+      color: var(--text-2);
+      box-shadow: none;
+    }
+    .tool-card-cta.coming-soon:hover {
+      background: var(--surface-2);
+      filter: none;
+      transform: translateY(-1px);
+    }
+
+    .tool-card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #b45309;
+      letter-spacing: 0.02em;
+      align-self: flex-start;
+    }
+    [data-theme="dark"] .tool-card-badge {
+      color: #fbbf24;
+      background: rgba(245,158,11,0.12);
+      border-color: rgba(245,158,11,0.25);
+    }
+
+    /* ── footer ── */
+    .site-footer {
+      position: relative;
+      z-index: 1;
+      padding: 20px 32px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12.5px;
+      color: var(--text-3);
+    }
+
+    @media (max-width: 640px) {
+      .topnav { padding: 14px 16px; }
+      .hero { padding: 60px 16px 80px; }
+      .tool-card { width: 100%; max-width: 400px; }
+    }
+  </style>
 </head>
-
 <body>
-<div class="wrap">
 
-<header class="hdr">
-    <div class="mark">R</div>
-    <div>
-        <h1>CUO Report Wizard</h1>
-        <p>Generates SQL for <code>dbo.ReportDefinition</code> — runs as preview
-           (<code>@commit = 0</code>) first.</p>
+  <nav class="topnav">
+    <a class="nav-brand" href="index.html">
+      <div class="nav-brand-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="nav-brand-name">Utilities</span>
+    </a>
+    <div class="nav-actions">
+      <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <span id="themeLabel">Dark</span>
+      </button>
     </div>
-    <button type="button" class="browsebtn readme-btn" onclick="toggleReadme(true)">📖 How to use</button>
-</header>
+  </nav>
 
-<div class="layout">
-<div class="col-form">
-
-<!-- ================= STEP 1: CATEGORY ================= -->
-<div class="box">
-    <span class="step">Step 1 · Category</span>
-    <label>Report Category</label>
-    <select id="category" onchange="onCategoryChange()">
-        <option value="Paycheck">Paycheck</option>
-        <option value="Invoice">Invoice</option>
-    </select>
-    <p class="hint" id="categoryHint"></p>
-</div>
-
-<!-- ================= STEP 2: MODE ================= -->
-<div class="box">
-    <span class="step">Step 2 · Choose mode</span>
-    <div class="seg">
-        <label class="seg-item">
-            <input type="radio" name="mode" value="copy" onclick="setMode('copy')">
-            <span class="seg-title">Copy existing</span>
-            <span class="seg-sub">Clone a report &amp; its subreports</span>
-        </label>
-        <label class="seg-item">
-            <input type="radio" name="mode" value="create" onclick="setMode('create')">
-            <span class="seg-title">Create report</span>
-            <span class="seg-sub">Paste XML or browse a folder</span>
-        </label>
-    </div>
-</div>
-
-<!-- ================= COPY MODE ================= -->
-<div id="copyBox" class="box hidden">
-    <h3>Copy Mode Settings</h3>
-
-    <div class="row2">
-        <div>
-            <label>Source (old) Report Title</label>
-            <input id="oldTitle" placeholder="e.g. avionte default paycheck top">
-        </div>
-        <div>
-            <label>New Report Title</label>
-            <input id="newTitle" placeholder="e.g. CUO_Default_PayCheck_Bottom">
-        </div>
+  <main class="hero">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Internal Tools
     </div>
 
-    <p class="hint">Subreports are discovered and cloned automatically from
-    <code>dbo.ReportDefinitionSubReportDefinition</code> — no need to list them.
-    The script renames the parent to the new title, rewrites <code>Avionte → CUO</code>,
-    normalizes stored-procedure names to <code>CUO_…</code>, and recreates the
-    parent↔subreport links. Run with <code>@commit = 0</code> to preview, then
-    <code>@commit = 1</code> to apply.</p>
-</div>
+    <h1 class="hero-title">
+      Your internal<br/><span>utility hub</span>
+    </h1>
 
-<!-- ================= CREATE MODE (paste XML + browse-to-fill) ================= -->
-<div id="newBox" class="box hidden">
-    <h3 id="newBoxTitle">Create Report</h3>
+    <p class="hero-sub">
+      A collection of tools to streamline internal workflows — report migrations, data utilities, and more.
+    </p>
 
-    <label>Parent Report Title</label>
-    <input id="newParentTitle" placeholder="e.g. CUO_MyNewReport">
+    <div class="tools-grid">
 
-    <label>Parent Stored Procedure</label>
-    <input id="newParentSP" list="spOptions" oninput="syncSPBody(this)" placeholder="e.g. CUO_exp_MyNewReport — type, paste, or pick a folder SP">
-    <datalist id="spOptions"></datalist>
-
-    <div class="row2">
-        <div>
-            <div class="label-row"><label style="margin:0;">Parent Stored Procedure SQL</label></div>
-            <textarea id="newParentSPBody" class="short" rows="3" placeholder="CREATE / ALTER PROCEDURE ... — auto-filled, or paste here"></textarea>
+      <div class="tool-card">
+        <div class="tool-card-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h3v1.5H8V10z"/>
+          </svg>
         </div>
-        <div>
-            <div class="label-row">
-                <label style="margin:0;">Parent ReportDefinitionXML</label>
-                <button type="button" class="browsebtn"
-                        onclick="document.getElementById('folderInput').click()">📁 Browse folder</button>
-            </div>
-            <textarea id="newParentXML" class="short" rows="3" placeholder="Paste full parent ReportDefinition XML here..."></textarea>
+        <div class="tool-card-body">
+          <div class="tool-card-title">Report Migration Builder</div>
+          <div class="tool-card-desc">Configure report details and parameters, then generate a ready-to-run SQL migration script.</div>
         </div>
+        <a class="tool-card-cta" href="MigrationGeneratorv2.html">
+          Open Tool
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </a>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-card-icon" style="background: linear-gradient(135deg, #0ea5e9, #6366f1);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="tool-card-body">
+          <div class="tool-card-title">Report Definitions Manager</div>
+          <div class="tool-card-desc">Generate report access SQL scripts to manage user permissions and role assignments for reports.</div>
+        </div>
+        <a class="tool-card-cta" href="report-definitions-manager.html">
+          Open Tool
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </a>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-card-icon" style="background: linear-gradient(135deg, #10b981, #0ea5e9);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="tool-card-body">
+          <div class="tool-card-title">Data Validation Tool</div>
+          <div class="tool-card-desc">Validate data integrity and run consistency checks across your data sources before a migration.</div>
+        </div>
+        <span class="tool-card-badge">In Development</span>
+        <a class="tool-card-cta" href="data-validation.html">
+          Open Tool
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </a>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-card-icon" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"/>
+            <line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/>
+            <line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </div>
+        <div class="tool-card-body">
+          <div class="tool-card-title">Migration Tracker</div>
+          <div class="tool-card-desc">Track and manage the status of migration scripts across environments and build versions.</div>
+        </div>
+        <span class="tool-card-badge">In Development</span>
+        <a class="tool-card-cta" href="migration-tracker.html">
+          Open Tool
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </a>
+      </div>
+
     </div>
-    <p class="hint">Paste XML/SP by hand, <em>or</em> browse a report folder to auto-fill the
-    title, XML and stored procedure for the parent and every subreport. Both fields are
-    resizable — drag the corner to expand for copy/paste. Layout: parent
-    <code>.xml</code>/<code>.rdl</code> at the root, child reports under a
-    <code>subreports/</code> folder, SP names as files under an <code>sp/</code> folder.</p>
-    <input type="file" id="folderInput" class="hidden" webkitdirectory directory multiple onchange="loadFolder(this)">
-
-    <div id="subreportsSection">
-        <h4>Subreports (optional)</h4>
-        <div id="newSubContainer"></div>
-        <button type="button" class="btn-add" onclick="addNewSub()">+ Add Subreport</button>
-    </div>
-
-    <h4 id="filesDetectedHdr" class="hidden">Files detected</h4>
-    <div id="browseDebug"></div>
-</div>
-
-<div class="actions">
-    <button class="btn-primary" onclick="generateSQL()">Generate Report SQL</button>
-    <button type="button" onclick="generateSPScript()">Generate SP Script</button>
-    <button type="button" onclick="copyOutput()">Copy Output</button>
-</div>
-
-</div><!-- /col-form -->
-
-<div class="col-output">
-<div class="out-head">
-    <h3>Output SQL <span class="hint" style="font-weight:400;">— copy from here</span></h3>
-    <button type="button" onclick="copyOutput()">Copy Output</button>
-</div>
-<pre id="output"></pre>
-</div><!-- /col-output -->
-
-</div><!-- /layout -->
-
-</div><!-- /wrap -->
-
-<!-- ================= READ ME / HOW TO USE ================= -->
-<div id="readmeModal" class="modal-overlay" onclick="if(event.target===this)toggleReadme(false)">
-  <div class="modal">
-    <div class="modal-head">
-        <h2>📖 How to use the Report Wizard</h2>
-        <button type="button" class="close" onclick="toggleReadme(false)">✕ Close</button>
-    </div>
-    <p class="hint">Builds SQL for <code>dbo.ReportDefinition</code>. Every script runs as a
-       <strong>preview first</strong> (<code>@commit = 0</code> inserts inside a transaction,
-       shows the stored rows, then ROLLBACKs). Set <code>@commit = 1</code> to actually persist.</p>
-
-    <h4>Step 1 · Category</h4>
-    <ul>
-        <li><strong>Paycheck</strong> (or any non-Invoice) → report <em>with</em> subreports.</li>
-        <li><strong>Invoice</strong> → <em>parent report only</em>; the subreport section is hidden
-            and no <code>ReportDefinitionSubReportDefinition</code> link is inserted.</li>
-    </ul>
-
-    <h4>Step 2 · Choose mode</h4>
-    <ol>
-        <li><strong>Copy existing</strong> — clone a report by its <em>source title</em> + category into a
-            <em>new title</em>. Subreports are discovered and cloned automatically; names are rewritten
-            <code>Avionte → CUO</code>, SPs normalized to <code>CUO_…</code>, and parent↔sub links recreated.</li>
-        <li><strong>Create report</strong> — supply the parent <em>title</em>, <em>stored procedure</em>,
-            <em>SP SQL</em> and <em>ReportDefinitionXML</em>. Paste by hand, or
-            <strong>📁 Browse folder</strong> to auto-fill everything. Add subreports as needed
-            (hidden when category = Invoice).</li>
-    </ol>
-
-    <h4>Browse-folder layout</h4>
-    <p class="hint">Browsing auto-fills the same fields you'd paste into:</p>
-    <pre class="layoutbox">&lt;ReportFolder&gt;/
-  Parent.xml / .rdl          ← parent report (root-level)
-  subreports/                ← each child report (any subfolder)
-     ChildA.xml
-  sp/                        ← stored procedures (filename = SP name)
-     CUO_exp_Foo.sql</pre>
-    <p class="hint">The parent is the file named/pathed <code>parent</code>, else the shallowest XML.
-       SP for each report is guessed by best name match (else the SP named in the XML); always editable.
-       A <strong>Files detected</strong> table shows how each file was classified.</p>
-
-    <h4>Buttons</h4>
-    <ul>
-        <li><strong>Generate Report SQL</strong> — the <code>ReportDefinition</code> INSERT (preview/commit).</li>
-        <li><strong>Generate SP Script</strong> — a standalone deployment
-            script of just the stored procedures (parent + subs).</li>
-        <li><strong>Copy Output</strong> — copies the Output SQL box to the clipboard.</li>
-    </ul>
-
-    <h4>Workflow</h4>
-    <ol>
-        <li>Pick category → mode → fill the fields (or browse).</li>
-        <li><strong>Generate Report SQL</strong>, copy it, run in SSMS with <code>@commit = 0</code> to preview.</li>
-        <li>Review the returned rows/links, then set <code>@commit = 1</code> and re-run to persist.</li>
-    </ol>
-  </div>
-</div>
-
-<script>
-// ---------------------------------------------------------------------------
-// Read Me (How to use) modal
-// ---------------------------------------------------------------------------
-function toggleReadme(open) {
-    document.getElementById("readmeModal").classList.toggle("open", open);
-}
-document.addEventListener("keydown", e => { if (e.key === "Escape") toggleReadme(false); });
-
-// ---------------------------------------------------------------------------
-// Mode handling
-// ---------------------------------------------------------------------------
-function setMode(mode) {
-    document.getElementById("copyBox").classList.add("hidden");
-    document.getElementById("newBox").classList.add("hidden");
-    if (mode === "copy")   document.getElementById("copyBox").classList.remove("hidden");
-    if (mode === "create") {
-        document.getElementById("newBox").classList.remove("hidden");
-        applyCreateLayout();
-    }
-}
-
-// Invoice category = parent-only: no subreports. The category control drives
-// the page, so the Create form's subreport section is shown/hidden by category.
-function isInvoiceCategory() {
-    return (val("category") || "").toLowerCase() === "invoice";
-}
-
-function applyCreateLayout() {
-    const invoice = isInvoiceCategory();
-    document.getElementById("subreportsSection").classList.toggle("hidden", invoice);
-    document.getElementById("newBoxTitle").innerText =
-        invoice ? "Create Report (parent only — no subreports)" : "Create Report";
-    if (invoice) document.getElementById("newSubContainer").innerHTML = "";  // drop any subs
-}
-
-// Re-run whenever the category changes; keeps the visible Create form in sync.
-function onCategoryChange() {
-    const hint = document.getElementById("categoryHint");
-    hint.textContent = isInvoiceCategory()
-        ? "Invoice: parent report only — no subreports are inserted."
-        : "";
-    if (!document.getElementById("newBox").classList.contains("hidden")) applyCreateLayout();
-}
-
-// ---------------------------------------------------------------------------
-// Dynamic subreport rows (Create mode only — Copy mode discovers subs in SQL)
-// ---------------------------------------------------------------------------
-function addNewSub(data) {
-    data = data || {};
-    const div = document.createElement("div");
-    div.className = "subreport";
-    div.innerHTML = `
-        <div class="row2">
-            <input class="subTitle" placeholder="Subreport title (CUO_...)">
-            <input class="subSP" list="spOptions" oninput="syncSPBody(this)" placeholder="Stored procedure (CUO_exp_...)">
-        </div>
-        <div class="row2">
-            <textarea class="subSPBody short" rows="3" placeholder="Stored procedure SQL (auto-filled from the sp/ folder, or paste)"></textarea>
-            <textarea class="subXML short" rows="3" placeholder="Subreport ReportDefinitionXML"></textarea>
-        </div>
-        <button type="button" class="remove" onclick="this.parentElement.remove()">Remove</button>
-    `;
-    div.querySelector(".subTitle").value  = data.title  || "";
-    div.querySelector(".subSP").value     = data.sp     || "";
-    div.querySelector(".subXML").value    = data.xml    || "";
-    div.querySelector(".subSPBody").value = data.spBody || "";
-    document.getElementById("newSubContainer").appendChild(div);
-}
-
-// When an SP name matches a file loaded from the sp/ folder, mirror its body
-// into the adjacent SP-SQL textarea (so picking a folder SP reflects its SQL).
-function syncSPBody(inputEl) {
-    const body = folderData.spFiles[(inputEl.value || "").trim()];
-    if (body === undefined) return;   // no loaded file by that name — leave as-is
-    const target = inputEl.id === "newParentSP"
-        ? document.getElementById("newParentSPBody")
-        : inputEl.closest(".subreport").querySelector(".subSPBody");
-    if (target) target.value = body;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function sqlStr(v) { return (v || "").replace(/'/g, "''"); }   // escape single quotes
-function val(id)   { return (document.getElementById(id).value || "").trim(); }
-
-// Strip the leading XML prolog (<?xml ... ?>) and any BOM. Its
-// encoding="utf-8" declaration clashes with the NVARCHAR (UTF-16) literal
-// and makes SQL Server throw "XML parsing ... unable to switch the encoding"
-// when the value is cast into the XML-typed ReportDefinitionXML column.
-function cleanXml(v) {
-    return (v || "").replace(/^﻿?\s*<\?xml[^>]*\?>\s*/i, "");
-}
-
-// ---------------------------------------------------------------------------
-// SQL generators
-// ---------------------------------------------------------------------------
-function generateCopySQL() {
-    const oldTitle = sqlStr(val("oldTitle"));
-    const newTitle = sqlStr(val("newTitle"));
-    const category = sqlStr(val("category"));
-
-    return `SET NOCOUNT ON;
-
-IF OBJECT_ID('tempdb..#tempreportdefinition') IS NOT NULL
-    DROP TABLE #tempreportdefinition;
-
-------------------------------------------------------------
--- PARAMETERS
-------------------------------------------------------------
-DECLARE @commit   BIT          = 0;   -- 0 = preview | 1 = commit
-DECLARE @oldtitle VARCHAR(MAX) = '${oldTitle}';
-DECLARE @newtitle VARCHAR(MAX) = '${newTitle}';
-DECLARE @category VARCHAR(MAX) = '${category}';
-
-DECLARE @reportdefinitionguid    UNIQUEIDENTIFIER;
-DECLARE @newreportdefinitionguid UNIQUEIDENTIFIER = NEWID();
-
-------------------------------------------------------------
--- Locate source (parent) report
-------------------------------------------------------------
-SELECT  @reportdefinitionguid = RD.ReportDefinitionGuid
-FROM    dbo.ReportDefinition RD
-WHERE   RD.Category = @category
-        AND RD.Title = @oldtitle
-        AND RD.IsSubReport = 0;
-
-IF @reportdefinitionguid IS NULL
-    BEGIN
-        RAISERROR('Source report not found (Title=%s, Category=%s).', 16, 1, @oldtitle, @category);
-        RETURN;
-    END
-
-------------------------------------------------------------
--- Load parent + subreports (NewGuid pre-assigned per row)
-------------------------------------------------------------
-SELECT  RD.ReportDefinitionGuid                         AS OldGuid ,
-        @newreportdefinitionguid                        AS NewGuid ,
-        RD.ReportDefinitionXML ,
-        CAST(RD.Description AS VARCHAR(MAX))            AS Description ,
-        RD.Category ,
-        RD.DateModified ,
-        CAST(RD.Title AS VARCHAR(MAX))                 AS Title ,
-        RD.ReportImage ,
-        CAST(RD.ReportStoredProcedure AS VARCHAR(MAX)) AS ReportStoredProcedure ,
-        RD.RootStaffingSupplierGUID ,
-        RD.IsSubReport ,
-        RD.PrintLayout
-INTO    #tempreportdefinition
-FROM    dbo.ReportDefinition RD
-WHERE   RD.ReportDefinitionGuid = @reportdefinitionguid
-UNION ALL
-SELECT  RD.ReportDefinitionGuid ,
-        NEWID() ,
-        RD.ReportDefinitionXML ,
-        CAST(RD.Description AS VARCHAR(MAX)) ,
-        RD.Category ,
-        RD.DateModified ,
-        CAST(RD.Title AS VARCHAR(MAX)) ,
-        RD.ReportImage ,
-        CAST(RD.ReportStoredProcedure AS VARCHAR(MAX)) ,
-        RD.RootStaffingSupplierGUID ,
-        RD.IsSubReport ,
-        RD.PrintLayout
-FROM    dbo.ReportDefinitionSubReportDefinition RDSRD
-        INNER JOIN dbo.ReportDefinition RD ON RD.ReportDefinitionGuid = RDSRD.SubReportDefinitionGUID
-WHERE   RDSRD.ReportDefinitionGUID = @reportdefinitionguid;
-
-------------------------------------------------------------
--- STEP 1: Normalize naming on every copied row (Avionte -> CUO)
-------------------------------------------------------------
-UPDATE  #tempreportdefinition
-SET     Title                 = REPLACE(Title, 'Avionte', 'CUO') ,
-        Description           = REPLACE(Description, 'Avionte', 'CUO') ,
-        ReportStoredProcedure = REPLACE(ReportStoredProcedure, 'Avionte', 'CUO');
-
-------------------------------------------------------------
--- STEP 2: Rename PARENT only -> new title
-------------------------------------------------------------
-UPDATE  #tempreportdefinition
-SET     Title = @newtitle, Description = @newtitle
-WHERE   IsSubReport = 0;
-
-------------------------------------------------------------
--- STEP 3: Stored procedure naming -> strip 'dbo.' + 'CUO_', then add 'CUO_'
-------------------------------------------------------------
-UPDATE  #tempreportdefinition
-SET     ReportStoredProcedure =
-            'CUO_' + REPLACE(REPLACE(ReportStoredProcedure, 'dbo.', ''), 'CUO_', '');
-
-------------------------------------------------------------
--- STEP 4: Force PrintLayout = 'Portrait'
-------------------------------------------------------------
-UPDATE  #tempreportdefinition
-SET     PrintLayout = 'Portrait';
-
-------------------------------------------------------------
--- Insert the clone into the REAL table inside a transaction.
---   @commit = 0  -> show the actually-stored rows + links, then ROLLBACK (nothing persists)
---   @commit = 1  -> COMMIT
-------------------------------------------------------------
-BEGIN TRY
-    BEGIN TRANSACTION;
-
-    INSERT  INTO dbo.ReportDefinition
-            ( ReportDefinitionGuid , ReportDefinitionXML , Description , Category ,
-              DateModified , Title , ReportImage , ReportStoredProcedure ,
-              RootStaffingSupplierGUID , IsSubReport , PrintLayout )
-            SELECT  NewGuid , ReportDefinitionXML , Description , Category ,
-                    DateModified , Title , ReportImage , ReportStoredProcedure ,
-                    RootStaffingSupplierGUID , IsSubReport , PrintLayout
-            FROM    #tempreportdefinition;
-
-    INSERT  INTO dbo.ReportDefinitionSubReportDefinition
-            ( ReportDefinitionGUID , SubReportDefinitionGUID )
-            SELECT  @newreportdefinitionguid , NewGuid
-            FROM    #tempreportdefinition
-            WHERE   IsSubReport = 1;
-
-    -- Reflect exactly what landed in the real table
-    SELECT  RD.*
-    FROM    dbo.ReportDefinition RD
-            INNER JOIN #tempreportdefinition T ON T.NewGuid = RD.ReportDefinitionGuid
-    ORDER   BY RD.IsSubReport;
-
-    SELECT  ReportDefinitionGUID AS ParentGuid , SubReportDefinitionGUID AS SubReportGuid
-    FROM    dbo.ReportDefinitionSubReportDefinition
-    WHERE   ReportDefinitionGUID = @newreportdefinitionguid;
-
-    IF @commit = 1
-        BEGIN
-            COMMIT TRANSACTION;
-            PRINT 'Clone complete. New parent GUID = ' + CONVERT(VARCHAR(50), @newreportdefinitionguid);
-        END
-    ELSE
-        BEGIN
-            ROLLBACK TRANSACTION;
-            PRINT 'PREVIEW only (rolled back). Set @commit = 1 to persist.';
-        END
-END TRY
-BEGIN CATCH
-    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-    DECLARE @ErrMsg VARCHAR(MAX) = ERROR_MESSAGE();
-    RAISERROR(@ErrMsg, 16, 1);
-END CATCH
-`;
-}
-
-function generateNewSQL() {
-    const category    = sqlStr(val("category"));
-    const parentTitle = sqlStr(val("newParentTitle"));
-    const parentSP    = sqlStr(val("newParentSP"));
-    const parentXML   = sqlStr(cleanXml(val("newParentXML")));
-
-    const subs = [];
-    document.querySelectorAll("#newSubContainer .subreport").forEach(s => {
-        subs.push({
-            title: sqlStr((s.querySelector(".subTitle").value || "").trim()),
-            sp:    sqlStr((s.querySelector(".subSP").value || "").trim()),
-            xml:   sqlStr(cleanXml((s.querySelector(".subXML").value || "").trim()))
-        });
-    });
-
-    let decls = "";
-    let inserts = "";
-    subs.forEach((s, i) => {
-        decls +=
-`DECLARE @sub${i + 1}Title VARCHAR(MAX)  = '${s.title}';
-DECLARE @sub${i + 1}SP    VARCHAR(MAX)  = '${s.sp}';
-DECLARE @sub${i + 1}XML   NVARCHAR(MAX) = N'${s.xml}';
-`;
-        inserts +=
-`            INSERT INTO dbo.ReportDefinition
-                ( ReportDefinitionXML , Description , Category , DateModified , Title ,
-                  RootStaffingSupplierGUID , IsSubReport , PrintLayout , ReportStoredProcedure )
-            OUTPUT inserted.ReportDefinitionGuid , inserted.IsSubReport INTO @inserted
-            VALUES ( @sub${i + 1}XML , @sub${i + 1}Title , @category , @DateModified , @sub${i + 1}Title ,
-                  @RootStaffingSupplierGUID , 1 , 'Portrait' , @sub${i + 1}SP );
-`;
-    });
-
-    return `SET NOCOUNT ON;
-
-------------------------------------------------------------
--- PARAMETERS
-------------------------------------------------------------
-DECLARE @commit   BIT          = 0;   -- 0 = preview (insert then ROLLBACK) | 1 = commit
-DECLARE @category VARCHAR(MAX) = '${category}';
-DECLARE @DateModified DATETIME = GETDATE();
-DECLARE @RootStaffingSupplierGUID UNIQUEIDENTIFIER = dbo.udf_GetUserRootStaffingSupplierGUID();
-
--- Parent
-DECLARE @parentTitle VARCHAR(MAX)  = '${parentTitle}';
-DECLARE @parentSP    VARCHAR(MAX)  = '${parentSP}';
-DECLARE @parentXML   NVARCHAR(MAX) = N'${parentXML}';
-
--- ReportDefinitionGuid + ReportImage are left to the table defaults;
--- DB-generated GUIDs are captured here so we can link parent -> subreports.
-DECLARE @inserted   TABLE ( ReportDefinitionGuid UNIQUEIDENTIFIER , IsSubReport BIT );
-DECLARE @parentGuid UNIQUEIDENTIFIER;
-
--- Subreports
-${decls || "-- (no subreports)\n"}
-------------------------------------------------------------
--- Insert into the REAL table inside a transaction.
---   @commit = 0  -> show the actually-stored rows, then ROLLBACK (nothing persists)
---   @commit = 1  -> COMMIT
-------------------------------------------------------------
-BEGIN TRY
-    BEGIN TRANSACTION;
-
-    INSERT INTO dbo.ReportDefinition
-        ( ReportDefinitionXML , Description , Category , DateModified , Title ,
-          RootStaffingSupplierGUID , IsSubReport , PrintLayout , ReportStoredProcedure )
-    OUTPUT inserted.ReportDefinitionGuid , inserted.IsSubReport INTO @inserted
-    VALUES ( @parentXML , @parentTitle , @category , @DateModified , @parentTitle ,
-          @RootStaffingSupplierGUID , 0 , 'Portrait' , @parentSP );
-
-${inserts}    SET @parentGuid = ( SELECT ReportDefinitionGuid FROM @inserted WHERE IsSubReport = 0 );
-
-    -- Link parent -> every subreport just inserted
-    INSERT INTO dbo.ReportDefinitionSubReportDefinition
-        ( ReportDefinitionGUID , SubReportDefinitionGUID )
-    SELECT @parentGuid , ReportDefinitionGuid
-    FROM   @inserted
-    WHERE  IsSubReport = 1;
-
-    -- Reflect exactly what landed in the real table
-    SELECT RD.*
-    FROM   dbo.ReportDefinition RD
-           INNER JOIN @inserted I ON I.ReportDefinitionGuid = RD.ReportDefinitionGuid
-    ORDER  BY RD.IsSubReport;
-
-    SELECT ReportDefinitionGUID AS ParentGuid , SubReportDefinitionGUID AS SubReportGuid
-    FROM   dbo.ReportDefinitionSubReportDefinition
-    WHERE  ReportDefinitionGUID = @parentGuid;
-
-    IF @commit = 1
-        BEGIN
-            COMMIT TRANSACTION;
-            PRINT 'New report created. Parent GUID = ' + CONVERT(VARCHAR(50), @parentGuid);
-        END
-    ELSE
-        BEGIN
-            ROLLBACK TRANSACTION;
-            PRINT 'PREVIEW only (rolled back). Set @commit = 1 to persist.';
-        END
-END TRY
-BEGIN CATCH
-    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-    DECLARE @ErrMsg VARCHAR(MAX) = ERROR_MESSAGE();
-    RAISERROR(@ErrMsg, 16, 1);
-END CATCH
-`;
-}
-
-// Invoice reports are parent-only: insert the single ReportDefinition row,
-// NO subreport rows and NO ReportDefinitionSubReportDefinition (junction) insert.
-function generateInvoiceSQL() {
-    const category    = sqlStr(val("category"));
-    const parentTitle = sqlStr(val("newParentTitle"));
-    const parentSP    = sqlStr(val("newParentSP"));
-    const parentXML   = sqlStr(cleanXml(val("newParentXML")));
-
-    return `SET NOCOUNT ON;
-
-------------------------------------------------------------
--- PARAMETERS
-------------------------------------------------------------
-DECLARE @commit   BIT          = 0;   -- 0 = preview (insert then ROLLBACK) | 1 = commit
-DECLARE @category VARCHAR(MAX) = '${category}';
-DECLARE @DateModified DATETIME = GETDATE();
-DECLARE @RootStaffingSupplierGUID UNIQUEIDENTIFIER = dbo.udf_GetUserRootStaffingSupplierGUID();
-
--- Parent (Invoice reports have no subreports — no junction insert)
-DECLARE @parentTitle VARCHAR(MAX)  = '${parentTitle}';
-DECLARE @parentSP    VARCHAR(MAX)  = '${parentSP}';
-DECLARE @parentXML   NVARCHAR(MAX) = N'${parentXML}';
-
--- ReportDefinitionGuid + ReportImage are left to the table defaults;
--- the DB-generated GUID is captured here just for the preview / PRINT.
-DECLARE @inserted   TABLE ( ReportDefinitionGuid UNIQUEIDENTIFIER , IsSubReport BIT );
-DECLARE @parentGuid UNIQUEIDENTIFIER;
-
-------------------------------------------------------------
--- Insert into the REAL table inside a transaction.
---   @commit = 0  -> show the actually-stored row, then ROLLBACK (nothing persists)
---   @commit = 1  -> COMMIT
-------------------------------------------------------------
-BEGIN TRY
-    BEGIN TRANSACTION;
-
-    INSERT INTO dbo.ReportDefinition
-        ( ReportDefinitionXML , Description , Category , DateModified , Title ,
-          RootStaffingSupplierGUID , IsSubReport , PrintLayout , ReportStoredProcedure )
-    OUTPUT inserted.ReportDefinitionGuid , inserted.IsSubReport INTO @inserted
-    VALUES ( @parentXML , @parentTitle , @category , @DateModified , @parentTitle ,
-          @RootStaffingSupplierGUID , 0 , 'Portrait' , @parentSP );
-
-    SET @parentGuid = ( SELECT ReportDefinitionGuid FROM @inserted WHERE IsSubReport = 0 );
-
-    -- Reflect exactly what landed in the real table
-    SELECT RD.*
-    FROM   dbo.ReportDefinition RD
-           INNER JOIN @inserted I ON I.ReportDefinitionGuid = RD.ReportDefinitionGuid;
-
-    IF @commit = 1
-        BEGIN
-            COMMIT TRANSACTION;
-            PRINT 'New Invoice report created. Parent GUID = ' + CONVERT(VARCHAR(50), @parentGuid);
-        END
-    ELSE
-        BEGIN
-            ROLLBACK TRANSACTION;
-            PRINT 'PREVIEW only (rolled back). Set @commit = 1 to persist.';
-        END
-END TRY
-BEGIN CATCH
-    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-    DECLARE @ErrMsg VARCHAR(MAX) = ERROR_MESSAGE();
-    RAISERROR(@ErrMsg, 16, 1);
-END CATCH
-`;
-}
-
-// ---------------------------------------------------------------------------
-// Browse folder -> auto-fill the Create-mode fields (parent + subreports + SP)
-// ---------------------------------------------------------------------------
-let folderData = { folderName: "", spNames: [], spFiles: {}, debug: [] };
-
-// Pull the stored-proc name out of an RDL/report XML:
-//   <CommandType>StoredProcedure</CommandType><CommandText>dbo.Foo</CommandText>
-function detectSP(xml) {
-    if (!xml) return "";
-    const m = xml.match(/StoredProcedure\s*<\/CommandType>\s*<CommandText>\s*([^<]+?)\s*<\/CommandText>/i)
-           || xml.match(/<CommandText>\s*([^<]+?)\s*<\/CommandText>/i);
-    return m ? m[1].replace(/^\[?dbo\]?\s*\.\s*/i, "").trim() : "";
-}
-
-// Longest common substring length (case-insensitive) — cheap fuzzy score.
-function lcsLen(a, b) {
-    a = (a || "").toLowerCase(); b = (b || "").toLowerCase();
-    let best = 0, prev = new Array(b.length + 1).fill(0);
-    for (let i = 1; i <= a.length; i++) {
-        const cur = new Array(b.length + 1).fill(0);
-        for (let j = 1; j <= b.length; j++) {
-            if (a[i - 1] === b[j - 1]) {
-                cur[j] = prev[j - 1] + 1;
-                if (cur[j] > best) best = cur[j];
-            }
-        }
-        prev = cur;
-    }
-    return best;
-}
-
-// Default SP for a report: best folder-SP match by title, else the SP named in
-// the XML. Editable afterwards (the field is a free-text input + datalist).
-function bestSP(title, xml, spNames) {
-    if (spNames && spNames.length) {
-        let pick = "", score = 0;
-        for (const sp of spNames) {
-            const s = lcsLen(title, sp);
-            if (s > score) { score = s; pick = sp; }
-        }
-        if (score >= 4) return pick;   // require a meaningful overlap
-    }
-    return detectSP(xml);
-}
-
-async function loadFolder(input) {
-    const files = Array.from(input.files || []);
-    folderData = { folderName: "", spNames: [], spFiles: {}, debug: [] };
-    if (!files.length) return;
-
-    const rel0 = (files[0].webkitRelativePath || files[0].name).replace(/\\/g, "/");
-    folderData.folderName = rel0.split("/")[0] || "";
-
-    // First pass: split into SP files, XML candidates, and ignored.
-    const xmls = [];
-    for (const f of files) {
-        const rawRel = (f.webkitRelativePath || f.name).replace(/\\/g, "/");
-        const rel    = rawRel.toLowerCase();
-        const base   = f.name.replace(/\.[^.]+$/, "");
-        const depth  = rawRel.split("/").length;   // Folder/file = 2, Folder/sub/file = 3
-
-        if (/(^|\/)sp\//.test(rel)) {
-            folderData.spNames.push(base);
-            folderData.spFiles[base] = await f.text();   // keep the SP body, not just the name
-            folderData.debug.push({ path: rawRel, kind: "SP file" });
-        } else if (/\.(xml|rdl)$/.test(rel)) {
-            const text = await f.text();
-            xmls.push({ base, text, rel, rawRel, depth });
-        } else {
-            folderData.debug.push({ path: rawRel, kind: "ignored" });
-        }
-    }
-    folderData.spNames = [...new Set(folderData.spNames)].sort();
-
-    // SP filenames become autocomplete suggestions for every SP field.
-    document.getElementById("spOptions").innerHTML =
-        folderData.spNames.map(n => `<option value="${n}">`).join("");
-
-    // Classify XMLs by STRUCTURE (not folder name):
-    //   parent = file named/pathed "parent", else the shallowest root-level xml.
-    let parentIdx = xmls.findIndex(x => /parent/.test(x.rel));
-    if (parentIdx < 0 && xmls.length) {
-        const minDepth = Math.min(...xmls.map(x => x.depth));
-        parentIdx = xmls.findIndex(x => x.depth === minDepth);
+  </main>
+
+  <footer class="site-footer">
+    Avionte Internal Utilities
+  </footer>
+
+  <script>
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const isDark = theme === 'dark';
+      const icon  = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (icon) icon.innerHTML = isDark
+        ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+        : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      if (label) label.textContent = isDark ? 'Light' : 'Dark';
     }
 
-    // Auto-fill the SAME fields the user would paste into.
-    document.getElementById("newSubContainer").innerHTML = "";
-    xmls.forEach((x, i) => {
-        const sp = bestSP(x.base, x.text, folderData.spNames);
-        if (i === parentIdx) {
-            document.getElementById("newParentTitle").value  = x.base;
-            document.getElementById("newParentXML").value    = x.text;
-            document.getElementById("newParentSP").value     = sp;
-            document.getElementById("newParentSPBody").value = folderData.spFiles[sp] || "";
-            folderData.debug.push({ path: x.rawRel, kind: "PARENT" });
-        } else {
-            addNewSub({ title: x.base, xml: x.text, sp: sp, spBody: folderData.spFiles[sp] || "" });
-            folderData.debug.push({ path: x.rawRel, kind: "subreport" });
-        }
-    });
-    if (parentIdx < 0) folderData.debug.push({ path: "(none)", kind: "NO PARENT FOUND" });
-    if (!val("newParentTitle"))
-        document.getElementById("newParentTitle").value = folderData.folderName;
-
-    renderDebug();
-}
-
-function renderDebug() {
-    document.getElementById("filesDetectedHdr").classList.remove("hidden");
-    const d = document.getElementById("browseDebug");
-    const rows = folderData.debug.map(x =>
-        `<tr><td style="padding:2px 8px;">${x.kind}</td><td style="padding:2px 8px;">${x.path}</td></tr>`
-    ).join("");
-    d.innerHTML =
-        `<p class="hint">Folder: <strong>${folderData.folderName}</strong> —
-         ${folderData.spNames.length} SP name(s) loaded as suggestions. Review the
-         auto-filled fields above; every value is editable.</p>
-         <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <tr><th style="text-align:left;padding:2px 8px;">Kind</th>
-                <th style="text-align:left;padding:2px 8px;">Path</th></tr>
-            ${rows}
-         </table>`;
-}
-
-function generateSQL() {
-    const mode = document.querySelector('input[name="mode"]:checked');
-    if (!mode) { alert("Please select a mode."); return; }
-
-    let sql = "";
-    if (mode.value === "copy")   sql = generateCopySQL();
-    if (mode.value === "create") sql = isInvoiceCategory() ? generateInvoiceSQL() : generateNewSQL();
-    if (sql) document.getElementById("output").innerText = sql;
-}
-
-// Separate, SQL-only deployment script: just the stored procedures
-// (parent + each subreport), independent of the ReportDefinition INSERT.
-function generateSPScript() {
-    const procs = [];
-    const pBody = (document.getElementById("newParentSPBody").value || "").trim();
-    if (pBody) procs.push({ name: val("newParentSP") || val("newParentTitle"), body: pBody });
-
-    document.querySelectorAll("#newSubContainer .subreport").forEach(s => {
-        const body = (s.querySelector(".subSPBody").value || "").trim();
-        if (body) procs.push({
-            name: (s.querySelector(".subSP").value || s.querySelector(".subTitle").value || "").trim(),
-            body
-        });
-    });
-
-    if (!procs.length) {
-        alert("No stored-procedure SQL found. Browse a folder that has an sp/ folder, " +
-              "or paste the procedure SQL into the SP fields first.");
-        return;
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      try { localStorage.setItem('migrationGeneratorTheme', next); } catch (e) {}
     }
 
-    let out = "";
-    procs.forEach(p => {
-        out += `\n------------------------------------------------------------\n` +
-               `-- ${p.name}\n` +
-               `------------------------------------------------------------\n` +
-               `${p.body}\n`;
-        if (!/\bGO\s*$/i.test(p.body)) out += "GO\n";
-    });
-    document.getElementById("output").innerText = out.replace(/^\n+/, "");
-}
-
-function copyOutput() {
-    const text = document.getElementById("output").innerText;
-    if (!text) return;
-    navigator.clipboard.writeText(text).then(
-        () => { /* copied */ },
-        () => { alert("Copy failed — select the text manually."); }
-    );
-}
-</script>
+    (function initTheme() {
+      let theme;
+      try { theme = localStorage.getItem('migrationGeneratorTheme'); } catch (e) {}
+      if (!theme) theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      applyTheme(theme);
+    })();
+  </script>
 
 </body>
 </html>
