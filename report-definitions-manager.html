@@ -1113,18 +1113,39 @@ function lcsLen(a, b) {
     return best;
 }
 
-// Default SP for a report: best folder-SP match by title, else the SP named in
-// the XML. Editable afterwards (the field is a free-text input + datalist).
-function bestSP(title, xml, spNames) {
-    if (spNames && spNames.length) {
-        let pick = "", score = 0;
+// Match every report (parent + subs) to the folder's SPs in ONE global pass:
+// score all report×SP pairs by longest-common-substring, then assign the best
+// pairs first with each SP used at most once.
+//
+// Why global (not per-report): a report title may tie several SPs on a generic
+// shared word. e.g. a Check "middle" parent titled "CUO Sealed Check Middle"
+// overlaps EVERY "...GetPaymentCheck*..." SP only on "Check" (score 5) — a
+// per-report pick would grab the alphabetically-first one (Accrual). Globally,
+// the distinctive subreports (...Accrual, ...Bank, ...Tax) claim their own SPs
+// on their long overlaps first, so the generic parent is left with the correct
+// leftover data SP (...GetPaymentCheckData). Returns Map(reportIndex -> spName);
+// unmatched reports fall back to detectSP(xml) at the call site.
+function assignSPs(reports, spNames) {
+    const out = new Map();
+    if (!spNames || !spNames.length) return out;
+
+    const pairs = [];
+    reports.forEach((r, ri) => {
         for (const sp of spNames) {
-            const s = lcsLen(title, sp);
-            if (s > score) { score = s; pick = sp; }
+            const s = lcsLen(r.base, sp);
+            if (s >= 4) pairs.push({ ri, sp, s });   // require a meaningful overlap
         }
-        if (score >= 4) return pick;   // require a meaningful overlap
+    });
+    pairs.sort((a, b) => b.s - a.s);   // best matches first
+
+    const usedReport = new Set(), usedSP = new Set();
+    for (const p of pairs) {
+        if (usedReport.has(p.ri) || usedSP.has(p.sp)) continue;
+        out.set(p.ri, p.sp);
+        usedReport.add(p.ri);
+        usedSP.add(p.sp);
     }
-    return detectSP(xml);
+    return out;
 }
 
 async function loadFolder(input) {
@@ -1168,10 +1189,15 @@ async function loadFolder(input) {
         parentIdx = xmls.findIndex(x => x.depth === minDepth);
     }
 
+    // Match all reports to folder SPs in one global pass (see assignSPs) so a
+    // distinctive subreport claims its own SP before the generic parent does;
+    // any report left unmatched falls back to the SP named in its own XML.
+    const spByIdx = assignSPs(xmls, folderData.spNames);
+
     // Auto-fill the SAME fields the user would paste into.
     document.getElementById("newSubContainer").innerHTML = "";
     xmls.forEach((x, i) => {
-        const sp = bestSP(x.base, x.text, folderData.spNames);
+        const sp = spByIdx.get(i) || detectSP(x.text);
         if (i === parentIdx) {
             document.getElementById("newParentTitle").value  = x.base;
             document.getElementById("newParentXML").value    = x.text;
